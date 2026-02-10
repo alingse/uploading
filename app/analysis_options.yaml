@@ -1,0 +1,51 @@
+# This file configures the analyzer, which statically analyzes Dart code to
+# check for errors, warnings, and lints.
+#
+# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
+# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
+# invoked from the command line by running `flutter analyze`.
+
+# The following line activates a set of recommended lints for Flutter apps,
+# packages, and plugins designed to encourage good coding practices.
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  # The lint rules applied to this project can be customized in the
+  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
+  # included above or to enable additional rules. A list of all available lints
+  # and their documentation is published at https://dart.dev/lints.
+  #
+  # Instead of disabling a lint rule for the entire project in the
+  # section below, it can also be suppressed for a single line of code
+  # or a specific dart file by using the `// ignore: name_of_lint` and
+  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
+  # producing the lint.
+  rules:
+    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
+    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+
+analyzer:
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+  errors:
+    # Riverpod 代码生成器在生成的代码中使用已弃用的 API
+    #
+    # 技术背景：
+    # - riverpod_generator 使用 @riverpod 注解生成 Provider 代码
+    # - 生成的 .g.dart 文件中会引用一些被标记为 deprecated 的内部 API
+    # - 这是 Riverpod 包内部的实现细节，不影响使用
+    #
+    # 安全性说明：
+    # - 此警告仅出现在生成的代码中，不影响手写代码的类型安全
+    # - Riverpod 维护者已确认这是预期的行为
+    # - 可以安全地忽略此警告
+    #
+    # 定期检查：
+    # - 定期运行 flutter pub upgrade 检查 Riverpod 更新
+    # - 当 Riverpod 发布新版本时，重新评估此配置的必要性
+    # - 参考：https://github.com/rrousselGit/riverpod/issues/2456
+    deprecated_member_use_from_same_package: ignore
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options

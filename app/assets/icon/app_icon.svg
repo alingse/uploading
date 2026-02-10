@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Transparent Square Background -->
+  <rect x="0" y="0" width="1024" height="1024" fill="transparent"/>
+  <defs>
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="starGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#cccccc;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="diamondGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#e0e0e0;stop-opacity:0.7" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Hexagon -->
+  <polygon points="512,60 900,280 900,540 900,744 512,964 124,744 124,540 124,280"
+           fill="url(#mainGrad)"
+           stroke="#ffffff"
+           stroke-width="4"/>
+
+  <!-- Inner Geometric Pattern - Hexagon Grid -->
+  <g opacity="0.15">
+    <polygon points="512,150 850,320 850,540 850,704 512,874 174,704 174,540 174,320"
+             fill="none" stroke="#ffffff" stroke-width="2"/>
+    <polygon points="512,240 800,380 800,540 800,664 512,804 224,664 224,540 224,380"
+             fill="none" stroke="#ffffff" stroke-width="1.5"/>
+  </g>
+
+  <!-- Central AI Star - 8 Pointed Star -->
+  <g transform="translate(512, 512)">
+    <!-- Outer glow -->
+    <polygon points="0,-180 45,-45 180,0 45,45 0,180 -45,45 -180,0 -45,-45"
+             fill="#ffffff"
+             opacity="0.1"
+             filter="url(#glow)"/>
+
+    <!-- Main star body -->
+    <polygon points="0,-150 35,-35 150,0 35,35 0,150 -35,35 -150,0 -35,-35"
+             fill="url(#starGrad)"/>
+
+    <!-- Inner diamond -->
+    <polygon points="0,-80 20,-20 80,0 20,20 0,80 -20,20 -80,0 -20,-20"
+             fill="#000000"/>
+
+    <!-- Center dot (AI Core) -->
+    <circle cx="0" cy="0" r="20" fill="#ffffff"/>
+    <circle cx="0" cy="0" r="12" fill="#000000"/>
+    <circle cx="0" cy="0" r="6" fill="#ffffff"/>
+
+    <!-- Orbiting dots -->
+    <circle cx="0" cy="-100" r="4" fill="#ffffff">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        from="0 0 0"
+                        to="360 0 0"
+                        dur="20s"
+                        repeatCount="indefinite"/>
+    </circle>
+    <circle cx="86.6" cy="50" r="3" fill="#ffffff" opacity="0.7">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        from="0 0 0"
+                        to="360 0 0"
+                        dur="20s"
+                        repeatCount="indefinite"/>
+    </circle>
+    <circle cx="-86.6" cy="50" r="3" fill="#ffffff" opacity="0.7">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        from="0 0 0"
+                        to="360 0 0"
+                        dur="20s"
+                        repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- Crystal Diamonds (3 around the star) - All vertical, creating 3D rotation effect -->
+  <!-- Triangle centroid aligned to Y=512, scaled 1.2x -->
+  <!-- Three suns in the sky atmosphere -->
+  <g>
+    <!-- Top Diamond with glow -->
+    <g>
+      <!-- Outer glow layer -->
+      <polygon points="512,235 489,312 512,341 535,312"
+               fill="#ffffff"
+               opacity="0.2"
+               filter="url(#glow)"/>
+      <!-- Main diamond -->
+      <polygon points="512,240 494,312 512,336 530,312"
+               fill="#ffffff"
+               opacity="0.95"/>
+    </g>
+
+    <!-- Left Diamond with glow -->
+    <g>
+      <!-- Outer glow layer -->
+      <polygon points="240,535 217,612 240,641 263,612"
+               fill="#ffffff"
+               opacity="0.2"
+               filter="url(#glow)"/>
+      <!-- Main diamond -->
+      <polygon points="240,540 222,612 240,636 258,612"
+               fill="#ffffff"
+               opacity="0.95"/>
+    </g>
+
+    <!-- Right Diamond with glow -->
+    <g>
+      <!-- Outer glow layer -->
+      <polygon points="784,535 761,612 784,641 807,612"
+               fill="#ffffff"
+               opacity="0.2"
+               filter="url(#glow)"/>
+      <!-- Main diamond -->
+      <polygon points="784,540 766,612 784,636 802,612"
+               fill="#ffffff"
+               opacity="0.95"/>
+    </g>
+  </g>
+
+  <!-- Binary Data Stream -->
+  <g fill="#ffffff" opacity="0.3" font-family="monospace" font-size="14">
+    <text x="160" y="400">01</text>
+    <text x="160" y="430">10</text>
+    <text x="160" y="460">11</text>
+    <text x="160" y="490">00</text>
+
+    <text x="820" y="400">01</text>
+    <text x="820" y="430">10</text>
+    <text x="820" y="460">11</text>
+    <text x="820" y="490">00</text>
+  </g>
+</svg>
