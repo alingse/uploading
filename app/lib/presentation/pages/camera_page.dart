@@ -11,6 +11,7 @@ import '../../../domain/entities/item.dart';
 import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/presence.dart';
 import '../providers/s3_account_provider.dart';
+import 'error_log_page.dart';
 
 /// 拍照页面
 class CameraPage extends ConsumerStatefulWidget {
@@ -133,10 +134,10 @@ class _CameraPageState extends ConsumerState<CameraPage> {
       final photoDao = PhotoDao();
 
       // 保存物品
-      await itemDao.insert(item.toJson());
+      await itemDao.insert(item.toDbMap());
 
       // 保存照片
-      await photoDao.insert(photo.toJson());
+      await photoDao.insert(photo.toDbMap());
 
       if (mounted) {
         Navigator.pop(context);
@@ -144,11 +145,25 @@ class _CameraPageState extends ConsumerState<CameraPage> {
           context,
         ).showSnackBar(const SnackBar(content: Text('保存成功')));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('保存失败: $e')));
+        // 显示简短提示
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('保存失败'),
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: '查看详情',
+              onPressed: () {
+                ErrorLogPage.show(
+                  context,
+                  error: e.toString(),
+                  stackTrace: stackTrace.toString(),
+                );
+              },
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) {

@@ -39,3 +39,43 @@ class Item with _$Item {
 
   factory Item.fromJson(Map<String, dynamic> json) => _$ItemFromJson(json);
 }
+
+/// Item 扩展方法
+extension ItemX on Item {
+  /// 转换为数据库格式（snake_case，仅包含 items 表字段）
+  ///
+  /// 注意：photos、tags、timeEvents 存储在单独的表中
+  Map<String, dynamic> toDbMap() {
+    return {
+      'id': id,
+      'presence': _$PresenceEnumMap[presence]!,
+      'notes': notes,
+      'created_at': createdAt.millisecondsSinceEpoch,
+      'last_synced_at': lastSyncedAt?.millisecondsSinceEpoch,
+    };
+  }
+}
+
+/// Item 数据库转换工具
+class ItemDbConverter {
+  /// 从数据库格式创建 Item（需要单独加载关联数据）
+  static Item fromDbMap(
+    Map<String, dynamic> map, {
+    List<Photo> photos = const [],
+    List<String> tags = const [],
+    List<TimeEvent> timeEvents = const [],
+  }) {
+    return Item.fromJson({
+      'id': map['id'] as String,
+      'photos': photos.map((p) => p.toJson()).toList(),
+      'presence': map['presence'] as String,
+      'notes': map['notes'] as String?,
+      'tags': tags,
+      'createdAt': DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
+      'timeEvents': timeEvents.map((e) => e.toJson()).toList(),
+      'lastSyncedAt': map['last_synced_at'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(map['last_synced_at'] as int),
+    });
+  }
+}

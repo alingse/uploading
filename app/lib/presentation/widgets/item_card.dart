@@ -1,13 +1,20 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../domain/entities/item.dart';
+import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/time_event.dart';
+import '../../../services/oss_service.dart';
+import '../providers/s3_account_provider.dart';
 import 'presence_chip.dart';
 import 'tag_chip.dart';
 
 /// 物品卡片组件
 ///
-/// 显示单个物品的信息
-class ItemCard extends StatelessWidget {
+/// 显示单个物品的信息，带缩略图预览
+class ItemCard extends ConsumerWidget {
   /// 物品信息
   final Item item;
 
@@ -29,7 +36,7 @@ class ItemCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     Widget cardChild = Card(
@@ -39,78 +46,89 @@ class ItemCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 第一行：存在性标签 + 照片数量
-              Row(
-                children: [
-                  PresenceChip(presence: item.presence),
-                  const SizedBox(width: 8),
-                  if (item.photos.isNotEmpty) ...[
-                    Icon(
-                      Icons.photo_library_outlined,
-                      size: 16,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              // 左侧缩略图
+              _buildThumbnail(ref),
+              const SizedBox(width: 12),
+              // 右侧内容
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 第一行：存在性标签 + 照片数量
+                    Row(
+                      children: [
+                        PresenceChip(presence: item.presence),
+                        const SizedBox(width: 8),
+                        if (item.photos.isNotEmpty) ...[
+                          Icon(
+                            Icons.photo_library_outlined,
+                            size: 16,
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${item.photos.length}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        _formatDate(item.createdAt),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${item.photos.length}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.6,
-                        ),
+                    // 备注
+                    if (item.notes != null && item.notes!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        item.notes!,
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                    ],
+                    // 标签
+                    if (item.tags.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      TagList(tags: item.tags.take(3).toList()),
+                      if (item.tags.length > 3) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '+${item.tags.length - 3} 个标签',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ],
+                    // 时间事件预览
+                    if (item.timeEvents.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: item.timeEvents.take(1).map((event) {
+                          return _TimeEventChip(event: event);
+                        }).toList(),
+                      ),
+                      if (item.timeEvents.length > 1) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '+${item.timeEvents.length - 1} 个时间事件',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ],
                   ],
-                  const Spacer(),
-                  _formatDate(item.createdAt),
-                ],
+                ),
               ),
-              // 备注
-              if (item.notes != null && item.notes!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  item.notes!,
-                  style: theme.textTheme.bodyMedium,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              // 标签
-              if (item.tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                TagList(tags: item.tags.take(5).toList()),
-                if (item.tags.length > 5) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '+${item.tags.length - 5} 个标签',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ],
-              // 时间事件预览
-              if (item.timeEvents.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: item.timeEvents.take(2).map((event) {
-                    return _TimeEventChip(event: event);
-                  }).toList(),
-                ),
-                if (item.timeEvents.length > 2) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '+${item.timeEvents.length - 2} 个时间事件',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ],
             ],
           ),
         ),
@@ -135,6 +153,100 @@ class ItemCard extends StatelessWidget {
     return cardChild;
   }
 
+  /// 构建缩略图
+  Widget _buildThumbnail(WidgetRef ref) {
+    if (item.photos.isEmpty) {
+      return _buildThumbnailPlaceholder();
+    }
+
+    final firstPhoto = item.photos.first;
+    return SizedBox(
+      width: 80,
+      height: 80,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: _buildPhotoImage(ref, firstPhoto),
+      ),
+    );
+  }
+
+  /// 构建图片
+  Widget _buildPhotoImage(WidgetRef ref, Photo photo) {
+    // 优先使用本地路径
+    if (photo.localPath != null) {
+      final file = File(photo.localPath!);
+      return Image.file(
+        file,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildThumbnailPlaceholder();
+        },
+      );
+    }
+
+    // 从 OSS 加载
+    final activeAccountAsync = ref.watch(activeAccountProvider);
+    return activeAccountAsync.when(
+      data: (account) {
+        if (account == null) {
+          return _buildThumbnailPlaceholder();
+        }
+        final ossService = OssService.fromAccount(account);
+        final imageUrl = ossService.getPublicUrl(photo.s3Key);
+        return Image.network(
+          imageUrl,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _buildThumbnailLoadingPlaceholder();
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return _buildThumbnailPlaceholder();
+          },
+        );
+      },
+      loading: () => _buildThumbnailLoadingPlaceholder(),
+      error: (_, __) => _buildThumbnailPlaceholder(),
+    );
+  }
+
+  /// 缩略图占位符
+  Widget _buildThumbnailPlaceholder() {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.image_outlined, size: 32, color: Colors.grey),
+    );
+  }
+
+  /// 缩略图加载中占位符
+  Widget _buildThumbnailLoadingPlaceholder() {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    );
+  }
+
+  /// 格式化日期
   Widget _formatDate(DateTime date) {
     return Text(
       _formatDateShort(date),
@@ -142,6 +254,7 @@ class ItemCard extends StatelessWidget {
     );
   }
 
+  /// 格式化日期字符串
   String _formatDateShort(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);

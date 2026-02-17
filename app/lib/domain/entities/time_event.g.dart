@@ -9,6 +9,7 @@ part of 'time_event.dart';
 _$TimeEventImpl _$$TimeEventImplFromJson(Map<String, dynamic> json) =>
     _$TimeEventImpl(
       id: json['id'] as String,
+      itemId: json['itemId'] as String?,
       label: json['label'] as String,
       datetime: json['datetime'] as String,
       value: json['value'] as String? ?? '',
@@ -18,6 +19,7 @@ _$TimeEventImpl _$$TimeEventImplFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$$TimeEventImplToJson(_$TimeEventImpl instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'itemId': instance.itemId,
       'label': instance.label,
       'datetime': instance.datetime,
       'value': instance.value,

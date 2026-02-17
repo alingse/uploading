@@ -9,6 +9,7 @@ import '../widgets/photo_grid.dart';
 import '../widgets/presence_chip.dart';
 import '../widgets/tag_chip.dart';
 import '../widgets/time_event_list.dart';
+import 'error_log_page.dart';
 
 /// 物品详情/编辑页面
 ///
@@ -289,11 +290,24 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           context,
         ).showSnackBar(const SnackBar(content: Text('保存成功')));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('保存失败: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('保存失败'),
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: '查看详情',
+              onPressed: () {
+                ErrorLogPage.show(
+                  context,
+                  error: e.toString(),
+                  stackTrace: stackTrace.toString(),
+                );
+              },
+            ),
+          ),
+        );
       }
     }
   }

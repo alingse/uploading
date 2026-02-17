@@ -163,14 +163,15 @@ class MockSecureStorageService extends _i1.Mock
       ) as _i3.Future<void>);
 
   @override
-  _i3.Future<Map<String, String>> getS3Credentials(String? accountId) =>
+  _i3.Future<Map<String, String?>> getS3Credentials(String? accountId) =>
       (super.noSuchMethod(
         Invocation.method(
           #getS3Credentials,
           [accountId],
         ),
-        returnValue: _i3.Future<Map<String, String>>.value(<String, String>{}),
-      ) as _i3.Future<Map<String, String>>);
+        returnValue:
+            _i3.Future<Map<String, String?>>.value(<String, String?>{}),
+      ) as _i3.Future<Map<String, String?>>);
 
   @override
   _i3.Future<void> deleteS3Credentials(String? accountId) =>

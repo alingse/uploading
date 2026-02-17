@@ -23,6 +23,9 @@ mixin _$TimeEvent {
   /// 唯一标识
   String get id => throw _privateConstructorUsedError;
 
+  /// 关联的物品 ID
+  String? get itemId => throw _privateConstructorUsedError;
+
   /// 自定义标签（如"买入"、"谁送的"、"制作时间"、"打包"等）
   String get label => throw _privateConstructorUsedError;
 
@@ -52,6 +55,7 @@ abstract class $TimeEventCopyWith<$Res> {
   @useResult
   $Res call(
       {String id,
+      String? itemId,
       String label,
       String datetime,
       String value,
@@ -74,6 +78,7 @@ class _$TimeEventCopyWithImpl<$Res, $Val extends TimeEvent>
   @override
   $Res call({
     Object? id = null,
+    Object? itemId = freezed,
     Object? label = null,
     Object? datetime = null,
     Object? value = null,
@@ -84,6 +89,10 @@ class _$TimeEventCopyWithImpl<$Res, $Val extends TimeEvent>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
+      itemId: freezed == itemId
+          ? _value.itemId
+          : itemId // ignore: cast_nullable_to_non_nullable
+              as String?,
       label: null == label
           ? _value.label
           : label // ignore: cast_nullable_to_non_nullable
@@ -114,6 +123,7 @@ abstract class _$$TimeEventImplCopyWith<$Res>
   @useResult
   $Res call(
       {String id,
+      String? itemId,
       String label,
       String datetime,
       String value,
@@ -134,6 +144,7 @@ class __$$TimeEventImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? id = null,
+    Object? itemId = freezed,
     Object? label = null,
     Object? datetime = null,
     Object? value = null,
@@ -144,6 +155,10 @@ class __$$TimeEventImplCopyWithImpl<$Res>
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
+      itemId: freezed == itemId
+          ? _value.itemId
+          : itemId // ignore: cast_nullable_to_non_nullable
+              as String?,
       label: null == label
           ? _value.label
           : label // ignore: cast_nullable_to_non_nullable
@@ -169,6 +184,7 @@ class __$$TimeEventImplCopyWithImpl<$Res>
 class _$TimeEventImpl implements _TimeEvent {
   const _$TimeEventImpl(
       {required this.id,
+      this.itemId,
       required this.label,
       required this.datetime,
       this.value = '',
@@ -180,6 +196,10 @@ class _$TimeEventImpl implements _TimeEvent {
   /// 唯一标识
   @override
   final String id;
+
+  /// 关联的物品 ID
+  @override
+  final String? itemId;
 
   /// 自定义标签（如"买入"、"谁送的"、"制作时间"、"打包"等）
   @override
@@ -200,7 +220,7 @@ class _$TimeEventImpl implements _TimeEvent {
 
   @override
   String toString() {
-    return 'TimeEvent(id: $id, label: $label, datetime: $datetime, value: $value, description: $description)';
+    return 'TimeEvent(id: $id, itemId: $itemId, label: $label, datetime: $datetime, value: $value, description: $description)';
   }
 
   @override
@@ -209,6 +229,7 @@ class _$TimeEventImpl implements _TimeEvent {
         (other.runtimeType == runtimeType &&
             other is _$TimeEventImpl &&
             (identical(other.id, id) || other.id == id) &&
+            (identical(other.itemId, itemId) || other.itemId == itemId) &&
             (identical(other.label, label) || other.label == label) &&
             (identical(other.datetime, datetime) ||
                 other.datetime == datetime) &&
@@ -220,7 +241,7 @@ class _$TimeEventImpl implements _TimeEvent {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
-      Object.hash(runtimeType, id, label, datetime, value, description);
+      Object.hash(runtimeType, id, itemId, label, datetime, value, description);
 
   /// Create a copy of TimeEvent
   /// with the given fields replaced by the non-null parameter values.
@@ -241,6 +262,7 @@ class _$TimeEventImpl implements _TimeEvent {
 abstract class _TimeEvent implements TimeEvent {
   const factory _TimeEvent(
       {required final String id,
+      final String? itemId,
       required final String label,
       required final String datetime,
       final String value,
@@ -252,6 +274,10 @@ abstract class _TimeEvent implements TimeEvent {
   /// 唯一标识
   @override
   String get id;
+
+  /// 关联的物品 ID
+  @override
+  String? get itemId;
 
   /// 自定义标签（如"买入"、"谁送的"、"制作时间"、"打包"等）
   @override

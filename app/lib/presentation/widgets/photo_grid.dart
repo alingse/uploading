@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/photo.dart';
@@ -72,10 +74,7 @@ class PhotoGrid extends ConsumerWidget {
     // 如果有本地路径，优先显示本地图片
     if (photo.localPath != null) {
       return Image.file(
-        // ignore: unnecessary_non_null_assertion, 需要检查是否存在
-        // 这里需要 import 'dart:io' 并使用 File
-        // 暂时使用占位符
-        null as dynamic,
+        File(photo.localPath!),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return _buildPlaceholder();
