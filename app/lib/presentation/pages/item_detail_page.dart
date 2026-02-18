@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../domain/entities/item.dart';
+import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/presence.dart';
 import '../../../domain/entities/time_event.dart';
+import '../../../services/auto_sync_manager.dart';
 import '../providers/item_provider.dart';
+import '../providers/s3_account_provider.dart';
 import '../widgets/photo_grid.dart';
 import '../widgets/presence_chip.dart';
 import '../widgets/tag_chip.dart';
@@ -33,6 +38,10 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
   late Presence _presence;
   late List<String> _tags;
   late List<TimeEvent> _timeEvents;
+  late List<Photo> _photos;
+
+  /// 图片选择器
+  final _picker = ImagePicker();
 
   /// 原始物品（用于比对）
   Item? _originalItem;
@@ -44,6 +53,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
     _presence = Presence.pending;
     _tags = [];
     _timeEvents = [];
+    _photos = [];
   }
 
   @override
@@ -94,6 +104,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
             _notesController.text = item.notes ?? '';
             _tags = List.from(item.tags);
             _timeEvents = List.from(item.timeEvents);
+            _photos = List.from(item.photos);
           }
 
           return _buildContent(context, item);
@@ -149,9 +160,13 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         ),
         const SizedBox(height: 8),
         PhotoGrid(
-          photos: item.photos,
+          photos: _isEditing ? _photos : item.photos,
+          editable: _isEditing,
+          onAddPhoto: _isEditing ? _addPhoto : null,
+          onDeletePhoto: _isEditing ? _removePhoto : null,
+          maxPhotos: AppConfig.maxPhotosPerItem,
           onTap: (index) {
-            PhotoPreviewDialog.show(context, item.photos, index);
+            PhotoPreviewDialog.show(context, _isEditing ? _photos : item.photos, index);
           },
         ),
         const SizedBox(height: 16),
@@ -257,6 +272,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         _notesController.text = _originalItem!.notes ?? '';
         _tags = List.from(_originalItem!.tags);
         _timeEvents = List.from(_originalItem!.timeEvents);
+        _photos = List.from(_originalItem!.photos);
       }
     });
   }
@@ -272,7 +288,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           : _notesController.text.trim(),
       createdAt: _originalItem!.createdAt,
       lastSyncedAt: _originalItem!.lastSyncedAt,
-      photos: _originalItem!.photos,
+      photos: _photos,
       tags: _tags,
       timeEvents: _timeEvents,
     );
@@ -289,6 +305,11 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('保存成功')));
+
+        // 触发自动同步
+        final activeAccount = await ref.read(activeAccountProvider.future);
+        final accountId = activeAccount?.id ?? 'default';
+        await AutoSyncManager.instance.requestSync(accountId);
       }
     } catch (e, stackTrace) {
       if (mounted) {
@@ -337,5 +358,71 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
     setState(() {
       _timeEvents.removeWhere((e) => e.id == event.id);
     });
+  }
+
+  /// 添加照片
+  Future<void> _addPhoto() async {
+    if (_photos.length >= AppConfig.maxPhotosPerItem) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('最多只能添加 ${AppConfig.maxPhotosPerItem} 张照片')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (photo != null && mounted) {
+        final activeAccount = await ref.read(activeAccountProvider.future);
+        final accountId = activeAccount?.id ?? 'default';
+        final newPhoto = PhotoDbConverter.createForUpload(
+          localPath: photo.path,
+          itemId: widget.itemId,
+          accountId: accountId,
+          buildS3Key: AppConfig.buildPhotoKey,
+        );
+        setState(() => _photos.add(newPhoto));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('添加照片失败: $e')));
+      }
+    }
+  }
+
+  /// 删除照片
+  void _removePhoto(int index) {
+    if (_photos.length <= 1) {
+      // 显示确认对话框
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('确认删除'),
+          content: const Text('这是最后一张照片，确定要删除吗？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() => _photos.removeAt(index));
+                Navigator.pop(context);
+              },
+              child: const Text('删除', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    setState(() => _photos.removeAt(index));
   }
 }

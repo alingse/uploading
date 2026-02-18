@@ -53,4 +53,7 @@ class AppConfig {
   static String buildPhotoKey(String accountId, String photoId) {
     return '$s3AccountsPrefix/$accountId/$s3AppPath/$s3PhotosPath/$photoId';
   }
+
+  /// 每个物品最大照片数量
+  static const int maxPhotosPerItem = 10;
 }

@@ -26,6 +26,18 @@ class PhotoGrid extends ConsumerWidget {
   /// 照片宽高比
   final double aspectRatio;
 
+  /// 是否启用编辑模式
+  final bool editable;
+
+  /// 添加照片回调
+  final VoidCallback? onAddPhoto;
+
+  /// 删除照片回调
+  final ValueChanged<int>? onDeletePhoto;
+
+  /// 最大照片数
+  final int maxPhotos;
+
   const PhotoGrid({
     super.key,
     required this.photos,
@@ -33,6 +45,10 @@ class PhotoGrid extends ConsumerWidget {
     this.crossAxisCount = 3,
     this.spacing = 4,
     this.aspectRatio = 1,
+    this.editable = false,
+    this.onAddPhoto,
+    this.onDeletePhoto,
+    this.maxPhotos = 10,
   });
 
   @override
@@ -40,6 +56,8 @@ class PhotoGrid extends ConsumerWidget {
     if (photos.isEmpty) {
       return _buildEmptyState(context);
     }
+
+    final itemCount = _calculateItemCount();
 
     return GridView.builder(
       shrinkWrap: true,
@@ -50,23 +68,97 @@ class PhotoGrid extends ConsumerWidget {
         mainAxisSpacing: spacing,
         childAspectRatio: aspectRatio,
       ),
-      itemCount: photos.length,
+      itemCount: itemCount,
       itemBuilder: (context, index) {
+        // 编辑模式下，最后一个位置显示添加按钮
+        if (editable && onAddPhoto != null && index == photos.length) {
+          return _buildAddButton(context);
+        }
         return _buildPhotoItem(context, ref, index, photos[index]);
       },
     );
   }
 
+  /// 计算网格项数量（编辑模式下 +1 用于添加按钮）
+  int _calculateItemCount() {
+    if (editable && onAddPhoto != null && photos.length < maxPhotos) {
+      return photos.length + 1;
+    }
+    return photos.length;
+  }
+
   Widget _buildPhotoItem(BuildContext context, WidgetRef ref, int index, Photo photo) {
+    final Widget photoWidget = Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildPhotoThumbnail(context, ref, photo),
+        if (photo.uploadStatus != UploadStatus.completed)
+          _buildUploadStatusOverlay(photo.uploadStatus),
+        // 编辑模式下显示删除按钮
+        if (editable && onDeletePhoto != null) _buildDeleteButton(index),
+      ],
+    );
+
     return GestureDetector(
       onTap: onTap != null ? () => onTap!(index) : null,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          _buildPhotoThumbnail(context, ref, photo),
-          if (photo.uploadStatus != UploadStatus.completed)
-            _buildUploadStatusOverlay(photo.uploadStatus),
-        ],
+      child: photoWidget,
+    );
+  }
+
+  /// 构建删除按钮
+  Widget _buildDeleteButton(int index) {
+    return Positioned(
+      top: 4,
+      right: 4,
+      child: GestureDetector(
+        onTap: () => onDeletePhoto!(index),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.6),
+            shape: BoxShape.circle,
+          ),
+          padding: const EdgeInsets.all(4),
+          child: const Icon(
+            Icons.close,
+            color: Colors.white,
+            size: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建添加照片按钮
+  Widget _buildAddButton(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onAddPhoto,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.5),
+            style: BorderStyle.solid,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_photo_alternate_outlined,
+              size: 32,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '添加',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -203,7 +295,25 @@ class PhotoGrid extends ConsumerWidget {
   Widget _buildEmptyState(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
+    final Widget content = Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.add_photo_alternate_outlined,
+          size: 32,
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          editable ? '点击添加照片' : '暂无照片',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+      ],
+    );
+
+    final container = Container(
       height: 120,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
@@ -213,26 +323,18 @@ class PhotoGrid extends ConsumerWidget {
           style: BorderStyle.solid,
         ),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_photo_alternate_outlined,
-              size: 32,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '暂无照片',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: Center(child: content),
     );
+
+    // 编辑模式下可点击添加
+    if (editable && onAddPhoto != null) {
+      return GestureDetector(
+        onTap: onAddPhoto,
+        child: container,
+      );
+    }
+
+    return container;
   }
 }
 

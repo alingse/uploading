@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:uuid/uuid.dart';
 
 part 'photo.freezed.dart';
 part 'photo.g.dart';
@@ -82,5 +83,34 @@ class PhotoDbConverter {
           ? null
           : DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
     });
+  }
+
+  /// 创建待上传的照片实体
+  ///
+  /// [localPath] 本地文件路径
+  /// [itemId] 关联的物品 ID
+  /// [accountId] S3 账户 ID，用于构建 S3 Key
+  /// [buildS3Key] 构建 S3 Key 的函数，默认格式为 `accounts/{accountId}/uploading/photos/{photoId}`
+  static Photo createForUpload({
+    required String localPath,
+    required String itemId,
+    required String accountId,
+    String Function(String accountId, String photoId)? buildS3Key,
+  }) {
+    final photoId = const Uuid().v4();
+    final s3Key = (buildS3Key ?? _defaultS3KeyBuilder)(accountId, photoId);
+    return Photo(
+      id: photoId,
+      itemId: itemId,
+      s3Key: s3Key,
+      localPath: localPath,
+      uploadStatus: UploadStatus.pending,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  /// 默认 S3 Key 构建函数
+  static String _defaultS3KeyBuilder(String accountId, String photoId) {
+    return 'accounts/$accountId/uploading/photos/$photoId';
   }
 }

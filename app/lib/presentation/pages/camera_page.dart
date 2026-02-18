@@ -28,7 +28,8 @@ class _CameraPageState extends ConsumerState<CameraPage> {
   final _notesController = TextEditingController();
   final _tagsController = TextEditingController();
 
-  File? _imageFile;
+  // ignore: prefer_final_fields
+  List<File> _imageFiles = [];
   bool _isSaving = false;
   Presence _selectedPresence = Presence.physical;
 
@@ -39,8 +40,23 @@ class _CameraPageState extends ConsumerState<CameraPage> {
     super.dispose();
   }
 
+  /// 检查是否可以添加照片
+  bool _canAddPhoto() {
+    if (_imageFiles.length >= AppConfig.maxPhotosPerItem) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('最多只能添加 ${AppConfig.maxPhotosPerItem} 张照片')),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
   /// 拍照
   Future<void> _takePicture() async {
+    if (!_canAddPhoto()) return;
+
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
@@ -48,7 +64,7 @@ class _CameraPageState extends ConsumerState<CameraPage> {
       );
 
       if (photo != null && mounted) {
-        setState(() => _imageFile = File(photo.path));
+        setState(() => _imageFiles.add(File(photo.path)));
       }
     } catch (e) {
       if (mounted) {
@@ -61,6 +77,8 @@ class _CameraPageState extends ConsumerState<CameraPage> {
 
   /// 从相册选择
   Future<void> _pickFromGallery() async {
+    if (!_canAddPhoto()) return;
+
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -68,7 +86,7 @@ class _CameraPageState extends ConsumerState<CameraPage> {
       );
 
       if (photo != null && mounted) {
-        setState(() => _imageFile = File(photo.path));
+        setState(() => _imageFiles.add(File(photo.path)));
       }
     } catch (e) {
       if (mounted) {
@@ -79,9 +97,14 @@ class _CameraPageState extends ConsumerState<CameraPage> {
     }
   }
 
+  /// 删除照片
+  void _removePhoto(int index) {
+    setState(() => _imageFiles.removeAt(index));
+  }
+
   /// 保存物品
   Future<void> _saveItem() async {
-    if (_imageFile == null) {
+    if (_imageFiles.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('请先拍照或选择图片')));
@@ -92,25 +115,21 @@ class _CameraPageState extends ConsumerState<CameraPage> {
 
     try {
       final itemId = const Uuid().v4();
-      final photoId = const Uuid().v4();
       final now = DateTime.now();
 
       // 获取当前激活的账户 ID
       final activeAccount = await ref.read(activeAccountProvider.future);
       final accountId = activeAccount?.id ?? 'default';
 
-      // 创建照片 S3 Key（使用 AppConfig.buildPhotoKey）
-      final s3Key = AppConfig.buildPhotoKey(accountId, photoId);
-
-      // 创建照片
-      final photo = Photo(
-        id: photoId,
-        itemId: itemId,
-        s3Key: s3Key,
-        localPath: _imageFile!.path,
-        uploadStatus: UploadStatus.pending,
-        createdAt: now,
-      );
+      // 创建多个照片实体
+      final photos = _imageFiles.map((imageFile) {
+        return PhotoDbConverter.createForUpload(
+          localPath: imageFile.path,
+          itemId: itemId,
+          accountId: accountId,
+          buildS3Key: AppConfig.buildPhotoKey,
+        );
+      }).toList();
 
       // 解析标签（逗号分隔）
       final tags = _tagsController.text
@@ -122,7 +141,7 @@ class _CameraPageState extends ConsumerState<CameraPage> {
       // 创建物品
       final item = Item(
         id: itemId,
-        photos: [photo],
+        photos: photos,
         presence: _selectedPresence,
         notes: _notesController.text.trim().isEmpty
             ? null
@@ -138,8 +157,8 @@ class _CameraPageState extends ConsumerState<CameraPage> {
       // 保存物品
       await itemDao.insert(item.toDbMap());
 
-      // 保存照片
-      await photoDao.insert(photo.toDbMap());
+      // 批量保存照片
+      await photoDao.insertBatch(photos.map((p) => p.toDbMap()).toList());
 
       if (mounted) {
         Navigator.pop(context);
@@ -184,9 +203,9 @@ class _CameraPageState extends ConsumerState<CameraPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('记录物品'),
+        title: Text('记录物品${_imageFiles.isNotEmpty ? ' (${_imageFiles.length}/${AppConfig.maxPhotosPerItem})' : ''}'),
         actions: [
-          if (_imageFile != null)
+          if (_imageFiles.isNotEmpty)
             TextButton(
               onPressed: _isSaving ? null : _saveItem,
               child: _isSaving
@@ -206,24 +225,46 @@ class _CameraPageState extends ConsumerState<CameraPage> {
         padding: const EdgeInsets.all(16),
         children: [
           // 图片区域
-          if (_imageFile != null) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(
-                _imageFile!,
-                height: 300,
-                width: double.infinity,
-                fit: BoxFit.cover,
+          if (_imageFiles.isNotEmpty) ...[
+            // 已选照片水平滚动列表
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _imageFiles.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  return _PhotoThumbnail(
+                    imageFile: _imageFiles[index],
+                    index: index,
+                    onDelete: () => _removePhoto(index),
+                  );
+                },
               ),
             ),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: () {
-                setState(() => _imageFile = null);
-              },
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              label: const Text('删除图片', style: TextStyle(color: Colors.red)),
-            ),
+            const SizedBox(height: 8),
+            // 添加更多照片按钮
+            if (_imageFiles.length < AppConfig.maxPhotosPerItem)
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: _takePicture,
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('拍照'),
+                  ),
+                  const SizedBox(width: 16),
+                  FilledButton.tonalIcon(
+                    onPressed: _pickFromGallery,
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('相册'),
+                  ),
+                ],
+              )
+            else
+              Text(
+                '已达到最大照片数量 (${AppConfig.maxPhotosPerItem})',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
           ] else ...[
             // 拍照/选择按钮
             Container(
@@ -308,6 +349,76 @@ class _CameraPageState extends ConsumerState<CameraPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 照片缩略图组件
+class _PhotoThumbnail extends StatelessWidget {
+  final File imageFile;
+  final int index;
+  final VoidCallback onDelete;
+
+  const _PhotoThumbnail({
+    required this.imageFile,
+    required this.index,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.file(
+            imageFile,
+            height: 200,
+            width: 200,
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: onDelete,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                shape: BoxShape.circle,
+              ),
+              padding: const EdgeInsets.all(4),
+              child: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 8,
+          left: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${index + 1}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
