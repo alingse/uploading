@@ -141,6 +141,8 @@ class _ItemListPageState extends ConsumerState<ItemListPage> {
                 item: filteredItems[index],
                 onTap: () =>
                     _navigateToDetail(context, filteredItems[index].id),
+                onLongPress: () =>
+                    _navigateToDetailForEdit(context, filteredItems[index].id),
                 onDelete: () =>
                     _confirmDelete(context, filteredItems[index].id),
               );
@@ -253,6 +255,18 @@ class _ItemListPageState extends ConsumerState<ItemListPage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ItemDetailPage(itemId: itemId)),
+    );
+  }
+
+  void _navigateToDetailForEdit(BuildContext context, String itemId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ItemDetailPage(
+          itemId: itemId,
+          startInEditMode: true,
+        ),
+      ),
     );
   }
 

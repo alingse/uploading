@@ -22,6 +22,9 @@ class ItemCard extends ConsumerWidget {
   /// 点击回调
   final VoidCallback onTap;
 
+  /// 长按回调（用于快捷编辑）
+  final VoidCallback? onLongPress;
+
   /// 是否可以滑动删除
   final bool enableSlideToDelete;
 
@@ -32,6 +35,7 @@ class ItemCard extends ConsumerWidget {
     super.key,
     required this.item,
     required this.onTap,
+    this.onLongPress,
     this.enableSlideToDelete = true,
     this.onDelete,
   });
@@ -45,6 +49,7 @@ class ItemCard extends ConsumerWidget {
       elevation: 2,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(

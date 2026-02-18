@@ -23,7 +23,14 @@ class ItemDetailPage extends ConsumerStatefulWidget {
   /// 物品 ID
   final String itemId;
 
-  const ItemDetailPage({super.key, required this.itemId});
+  /// 是否直接进入编辑模式
+  final bool startInEditMode;
+
+  const ItemDetailPage({
+    super.key,
+    required this.itemId,
+    this.startInEditMode = false,
+  });
 
   @override
   ConsumerState<ItemDetailPage> createState() => _ItemDetailPageState();
@@ -54,6 +61,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
     _tags = [];
     _timeEvents = [];
     _photos = [];
+    _isEditing = widget.startInEditMode;
   }
 
   @override
@@ -72,9 +80,9 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (!_isEditing && _originalItem != null)
-            IconButton(
-              icon: const Icon(Icons.edit),
-              tooltip: '编辑',
+            TextButton.icon(
+              icon: const Icon(Icons.edit, size: 18),
+              label: const Text('编辑'),
               onPressed: () => _toggleEditMode(true),
             ),
           if (_isEditing)
