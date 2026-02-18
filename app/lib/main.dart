@@ -1,13 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'data/datasources/local/dao/s3_account_dao.dart';
 import 'presentation/pages/account_list_page.dart';
 import 'presentation/pages/camera_page.dart';
 import 'presentation/pages/item_list_page.dart';
 import 'services/auto_sync_manager.dart';
+import 'services/logging_service.dart';
 
-void main() {
+void main() async {
+  // 确保 Flutter 绑定初始化
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化日志服务
+  final loggingService = LoggingService();
+  await loggingService.init();
+
+  // 获取并记录应用版本信息
+  final packageInfo = await PackageInfo.fromPlatform();
+  await loggingService.info('应用启动', context: {
+    'appName': packageInfo.appName,
+    'packageName': packageInfo.packageName,
+    'version': packageInfo.version,
+    'buildNumber': packageInfo.buildNumber,
+    'buildSignature': packageInfo.buildSignature,
+  });
+
   runApp(const ProviderScope(child: MyApp()));
 }
 

@@ -48,7 +48,7 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -165,6 +165,9 @@ class AppDatabase {
     }
     if (oldVersion < 4) {
       await migrateToVersion4(db);
+    }
+    if (oldVersion < 5) {
+      await migrateToVersion5(db);
     }
   }
 
@@ -326,6 +329,38 @@ class AppDatabase {
         }
       }
     });
+  }
+
+  /// 迁移到版本5：修复格式错误的 endpoint
+  ///
+  /// 检查并修复所有格式不正确的 endpoint 值
+  /// - 如果 endpoint 不以 https:// 或 http:// 开头，则根据 region 重新生成
+  /// - 防止出现类似 "aiflow.https" 这样的错误格式
+  Future<void> migrateToVersion5(Database db) async {
+    // 获取所有账户
+    final accounts = await db.query('s3_accounts');
+
+    for (var account in accounts) {
+      final id = account['id'] as String;
+      final region = account['region'] as String;
+      final endpoint = account['endpoint'] as String;
+
+      // 检查 endpoint 格式是否正确
+      if (!endpoint.startsWith('https://') && !endpoint.startsWith('http://')) {
+        // 根据区域重新生成正确的 endpoint
+        final correctEndpoint = AppConfig.ossRegionEndpoints.containsKey(region)
+            ? AppConfig.ossRegionEndpoints[region]!
+            : AppConfig.getEndpointForRegion(region);
+
+        // 更新数据库
+        await db.update(
+          's3_accounts',
+          {'endpoint': correctEndpoint},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    }
   }
 
   /// 检查表是否存在

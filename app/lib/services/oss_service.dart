@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_oss_aliyun/flutter_oss_aliyun.dart';
 import '../domain/entities/s3_account.dart';
+import '../core/config/app_config.dart';
 import 'logging_service.dart';
 
 /// 阿里云 OSS 服务
@@ -22,9 +23,28 @@ class OssService {
   });
 
   /// 从 S3Account 创建 OssService
+  ///
+  /// 自动验证并修复格式错误的 endpoint
+  /// 如果 endpoint 不以 https:// 或 http:// 开头，则根据 region 重新生成
   factory OssService.fromAccount(S3Account account) {
+    // 验证 endpoint 格式
+    String validatedEndpoint = account.endpoint;
+    if (!validatedEndpoint.startsWith('https://') &&
+        !validatedEndpoint.startsWith('http://')) {
+      // endpoint 格式错误，根据 region 重新生成
+      LoggingService().warning('检测到格式错误的 endpoint，正在自动修复', context: {
+        'invalidEndpoint': validatedEndpoint,
+        'region': account.region,
+      });
+      validatedEndpoint = AppConfig.getEndpointForRegion(account.region);
+
+      LoggingService().info('已自动修复 endpoint', context: {
+        'correctedEndpoint': validatedEndpoint,
+      });
+    }
+
     return OssService(
-      endpoint: account.endpoint,
+      endpoint: validatedEndpoint,
       accessKey: account.accessKey,
       secretKey: account.secretKey,
       bucket: account.bucket,
@@ -34,8 +54,13 @@ class OssService {
 
   /// 初始化 OSS 客户端
   void init() {
+    // flutter_oss_aliyun 库内部构建 URL 为 "https://{bucket}.{endpoint}/{key}"
+    // 因此 endpoint 必须是纯域名，不能带协议前缀
+    final cleanEndpoint = endpoint
+        .replaceFirst('https://', '')
+        .replaceFirst('http://', '');
     Client.init(
-      ossEndpoint: endpoint,
+      ossEndpoint: cleanEndpoint,
       bucketName: bucket,
       authGetter: _authGetter,
     );
