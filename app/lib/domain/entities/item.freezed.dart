@@ -41,6 +41,9 @@ mixin _$Item {
   /// 时间事件列表（灵活的时间节点记录）
   List<TimeEvent> get timeEvents => throw _privateConstructorUsedError;
 
+  /// 记忆点列表
+  List<Memory> get memories => throw _privateConstructorUsedError;
+
   /// 最后同步时间（可选）
   DateTime? get lastSyncedAt => throw _privateConstructorUsedError;
 
@@ -66,6 +69,7 @@ abstract class $ItemCopyWith<$Res> {
       List<String> tags,
       DateTime createdAt,
       List<TimeEvent> timeEvents,
+      List<Memory> memories,
       DateTime? lastSyncedAt});
 }
 
@@ -91,6 +95,7 @@ class _$ItemCopyWithImpl<$Res, $Val extends Item>
     Object? tags = null,
     Object? createdAt = null,
     Object? timeEvents = null,
+    Object? memories = null,
     Object? lastSyncedAt = freezed,
   }) {
     return _then(_value.copyWith(
@@ -122,6 +127,10 @@ class _$ItemCopyWithImpl<$Res, $Val extends Item>
           ? _value.timeEvents
           : timeEvents // ignore: cast_nullable_to_non_nullable
               as List<TimeEvent>,
+      memories: null == memories
+          ? _value.memories
+          : memories // ignore: cast_nullable_to_non_nullable
+              as List<Memory>,
       lastSyncedAt: freezed == lastSyncedAt
           ? _value.lastSyncedAt
           : lastSyncedAt // ignore: cast_nullable_to_non_nullable
@@ -145,6 +154,7 @@ abstract class _$$ItemImplCopyWith<$Res> implements $ItemCopyWith<$Res> {
       List<String> tags,
       DateTime createdAt,
       List<TimeEvent> timeEvents,
+      List<Memory> memories,
       DateTime? lastSyncedAt});
 }
 
@@ -167,6 +177,7 @@ class __$$ItemImplCopyWithImpl<$Res>
     Object? tags = null,
     Object? createdAt = null,
     Object? timeEvents = null,
+    Object? memories = null,
     Object? lastSyncedAt = freezed,
   }) {
     return _then(_$ItemImpl(
@@ -198,6 +209,10 @@ class __$$ItemImplCopyWithImpl<$Res>
           ? _value._timeEvents
           : timeEvents // ignore: cast_nullable_to_non_nullable
               as List<TimeEvent>,
+      memories: null == memories
+          ? _value._memories
+          : memories // ignore: cast_nullable_to_non_nullable
+              as List<Memory>,
       lastSyncedAt: freezed == lastSyncedAt
           ? _value.lastSyncedAt
           : lastSyncedAt // ignore: cast_nullable_to_non_nullable
@@ -217,10 +232,12 @@ class _$ItemImpl implements _Item {
       final List<String> tags = const [],
       required this.createdAt,
       final List<TimeEvent> timeEvents = const [],
+      final List<Memory> memories = const [],
       this.lastSyncedAt})
       : _photos = photos,
         _tags = tags,
-        _timeEvents = timeEvents;
+        _timeEvents = timeEvents,
+        _memories = memories;
 
   factory _$ItemImpl.fromJson(Map<String, dynamic> json) =>
       _$$ItemImplFromJson(json);
@@ -276,13 +293,25 @@ class _$ItemImpl implements _Item {
     return EqualUnmodifiableListView(_timeEvents);
   }
 
+  /// 记忆点列表
+  final List<Memory> _memories;
+
+  /// 记忆点列表
+  @override
+  @JsonKey()
+  List<Memory> get memories {
+    if (_memories is EqualUnmodifiableListView) return _memories;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_memories);
+  }
+
   /// 最后同步时间（可选）
   @override
   final DateTime? lastSyncedAt;
 
   @override
   String toString() {
-    return 'Item(id: $id, photos: $photos, presence: $presence, notes: $notes, tags: $tags, createdAt: $createdAt, timeEvents: $timeEvents, lastSyncedAt: $lastSyncedAt)';
+    return 'Item(id: $id, photos: $photos, presence: $presence, notes: $notes, tags: $tags, createdAt: $createdAt, timeEvents: $timeEvents, memories: $memories, lastSyncedAt: $lastSyncedAt)';
   }
 
   @override
@@ -300,6 +329,7 @@ class _$ItemImpl implements _Item {
                 other.createdAt == createdAt) &&
             const DeepCollectionEquality()
                 .equals(other._timeEvents, _timeEvents) &&
+            const DeepCollectionEquality().equals(other._memories, _memories) &&
             (identical(other.lastSyncedAt, lastSyncedAt) ||
                 other.lastSyncedAt == lastSyncedAt));
   }
@@ -315,6 +345,7 @@ class _$ItemImpl implements _Item {
       const DeepCollectionEquality().hash(_tags),
       createdAt,
       const DeepCollectionEquality().hash(_timeEvents),
+      const DeepCollectionEquality().hash(_memories),
       lastSyncedAt);
 
   /// Create a copy of Item
@@ -342,6 +373,7 @@ abstract class _Item implements Item {
       final List<String> tags,
       required final DateTime createdAt,
       final List<TimeEvent> timeEvents,
+      final List<Memory> memories,
       final DateTime? lastSyncedAt}) = _$ItemImpl;
 
   factory _Item.fromJson(Map<String, dynamic> json) = _$ItemImpl.fromJson;
@@ -373,6 +405,10 @@ abstract class _Item implements Item {
   /// 时间事件列表（灵活的时间节点记录）
   @override
   List<TimeEvent> get timeEvents;
+
+  /// 记忆点列表
+  @override
+  List<Memory> get memories;
 
   /// 最后同步时间（可选）
   @override

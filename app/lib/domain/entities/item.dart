@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'memory.dart';
 import 'photo.dart';
 import 'presence.dart';
 import 'time_event.dart';
@@ -33,6 +36,9 @@ class Item with _$Item {
     /// 时间事件列表（灵活的时间节点记录）
     @Default([]) List<TimeEvent> timeEvents,
 
+    /// 记忆点列表
+    @Default([]) List<Memory> memories,
+
     /// 最后同步时间（可选）
     DateTime? lastSyncedAt,
   }) = _Item;
@@ -45,13 +51,20 @@ extension ItemX on Item {
   /// 转换为数据库格式（snake_case，仅包含 items 表字段）
   ///
   /// 注意：photos、tags、timeEvents 存储在单独的表中
+  /// memories 以 JSON 字符串形式存储在 items 表中
   Map<String, dynamic> toDbMap() {
+    // 将 memories 序列化为 JSON 字符串
+    final memoriesJson = memories.isNotEmpty
+        ? const JsonEncoder().convert(memories.map((m) => m.toMap()).toList())
+        : null;
+
     return {
       'id': id,
       'presence': _$PresenceEnumMap[presence]!,
       'notes': notes,
       'created_at': createdAt.millisecondsSinceEpoch,
       'last_synced_at': lastSyncedAt?.millisecondsSinceEpoch,
+      'memories': memoriesJson,
     };
   }
 }
@@ -64,7 +77,21 @@ class ItemDbConverter {
     List<Photo> photos = const [],
     List<String> tags = const [],
     List<TimeEvent> timeEvents = const [],
+    List<Memory> memories = const [],
   }) {
+    // 解析 memories JSON
+    List<Memory> parsedMemories = memories;
+    final memoriesJson = map['memories'] as String?;
+    if (memoriesJson != null && memoriesJson.isNotEmpty) {
+      try {
+        final List<dynamic> decoded = const JsonDecoder().convert(memoriesJson);
+        parsedMemories = decoded.map((e) => Memory.fromJson(e as Map<String, dynamic>)).toList();
+      } catch (_) {
+        // 如果解析失败，使用传入的 memories 或空列表
+        parsedMemories = memories;
+      }
+    }
+
     return Item.fromJson({
       'id': map['id'] as String,
       'photos': photos.map((p) => p.toJson()).toList(),
@@ -73,6 +100,7 @@ class ItemDbConverter {
       'tags': tags,
       'createdAt': DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       'timeEvents': timeEvents.map((e) => e.toJson()).toList(),
+      'memories': parsedMemories.map((m) => m.toJson()).toList(),
       'lastSyncedAt': map['last_synced_at'] == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(map['last_synced_at'] as int),

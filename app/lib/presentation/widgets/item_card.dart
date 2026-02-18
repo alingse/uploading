@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/item.dart';
+import '../../../domain/entities/memory.dart';
 import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/time_event.dart';
 import '../../../services/oss_service.dart';
@@ -131,6 +132,11 @@ class ItemCard extends ConsumerWidget {
                           ),
                         ),
                       ],
+                    ],
+                    // 记忆点预览
+                    if (item.memories.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _MemoryPreview(memories: item.memories),
                     ],
                   ],
                 ),
@@ -348,6 +354,71 @@ class _TimeEventChip extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// 记忆点预览组件（用于卡片）
+class _MemoryPreview extends StatelessWidget {
+  final List<Memory> memories;
+  static const int _maxDisplay = 2;
+  static const int _maxContentLength = 20;
+
+  const _MemoryPreview({required this.memories});
+
+  String _truncateContent(String content) {
+    if (content.length <= _maxContentLength) return content;
+    return '${content.substring(0, _maxContentLength)}...';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final displayMemories = memories.take(_maxDisplay).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: displayMemories.map((memory) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.psychology_outlined,
+                    size: 12,
+                    color: theme.colorScheme.onSecondaryContainer.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _truncateContent(memory.content),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+        if (memories.length > _maxDisplay) ...[
+          const SizedBox(height: 4),
+          Text(
+            '+${memories.length - _maxDisplay} 个记忆点',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

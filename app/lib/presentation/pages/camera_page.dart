@@ -9,10 +9,12 @@ import '../../../core/config/app_config.dart';
 import '../../../data/datasources/local/dao/item_dao.dart';
 import '../../../data/datasources/local/dao/photo_dao.dart';
 import '../../../domain/entities/item.dart';
+import '../../../domain/entities/memory.dart';
 import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/presence.dart';
 import '../../../services/auto_sync_manager.dart';
 import '../providers/s3_account_provider.dart';
+import '../widgets/memory_chip.dart';
 import 'error_log_page.dart';
 
 /// 拍照页面
@@ -32,6 +34,7 @@ class _CameraPageState extends ConsumerState<CameraPage> {
   List<File> _imageFiles = [];
   bool _isSaving = false;
   Presence _selectedPresence = Presence.physical;
+  List<Memory> _memories = [];
 
   @override
   void dispose() {
@@ -148,6 +151,7 @@ class _CameraPageState extends ConsumerState<CameraPage> {
             : _notesController.text.trim(),
         tags: tags,
         createdAt: now,
+        memories: _memories,
       );
 
       // 保存到数据库
@@ -315,6 +319,14 @@ class _CameraPageState extends ConsumerState<CameraPage> {
               prefixIcon: Icon(Icons.note),
             ),
             maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+
+          // 记忆点输入
+          MemoryInputField(
+            memories: _memories,
+            onChanged: (value) => setState(() => _memories = value),
+            hintText: '添加记忆点...',
           ),
           const SizedBox(height: 16),
 

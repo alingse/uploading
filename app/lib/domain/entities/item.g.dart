@@ -21,6 +21,10 @@ _$ItemImpl _$$ItemImplFromJson(Map<String, dynamic> json) => _$ItemImpl(
               ?.map((e) => TimeEvent.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      memories: (json['memories'] as List<dynamic>?)
+              ?.map((e) => Memory.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
       lastSyncedAt: json['lastSyncedAt'] == null
           ? null
           : DateTime.parse(json['lastSyncedAt'] as String),
@@ -35,6 +39,7 @@ Map<String, dynamic> _$$ItemImplToJson(_$ItemImpl instance) =>
       'tags': instance.tags,
       'createdAt': instance.createdAt.toIso8601String(),
       'timeEvents': instance.timeEvents,
+      'memories': instance.memories,
       'lastSyncedAt': instance.lastSyncedAt?.toIso8601String(),
     };
 

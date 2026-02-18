@@ -48,7 +48,7 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -172,6 +172,9 @@ class AppDatabase {
     }
     if (oldVersion < 6) {
       await migrateToVersion6(db);
+    }
+    if (oldVersion < 7) {
+      await migrateToVersion7(db);
     }
   }
 
@@ -408,6 +411,13 @@ class AppDatabase {
         }
       }
     });
+  }
+
+  /// 迁移到版本7：添加记忆点列
+  ///
+  /// 添加 memories 列用于存储记忆点数据（JSON 格式）
+  Future<void> migrateToVersion7(Database db) async {
+    await db.execute('ALTER TABLE items ADD COLUMN memories TEXT');
   }
 
   /// 检查表是否存在

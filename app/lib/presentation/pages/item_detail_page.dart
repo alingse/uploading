@@ -4,12 +4,14 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../domain/entities/item.dart';
+import '../../../domain/entities/memory.dart';
 import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/presence.dart';
 import '../../../domain/entities/time_event.dart';
 import '../../../services/auto_sync_manager.dart';
 import '../providers/item_provider.dart';
 import '../providers/s3_account_provider.dart';
+import '../widgets/memory_chip.dart';
 import '../widgets/photo_grid.dart';
 import '../widgets/presence_chip.dart';
 import '../widgets/tag_chip.dart';
@@ -46,6 +48,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
   late List<String> _tags;
   late List<TimeEvent> _timeEvents;
   late List<Photo> _photos;
+  late List<Memory> _memories;
 
   /// 图片选择器
   final _picker = ImagePicker();
@@ -61,6 +64,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
     _tags = [];
     _timeEvents = [];
     _photos = [];
+    _memories = [];
     _isEditing = widget.startInEditMode;
   }
 
@@ -113,6 +117,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
             _tags = List.from(item.tags);
             _timeEvents = List.from(item.timeEvents);
             _photos = List.from(item.photos);
+            _memories = List.from(item.memories);
           }
 
           return _buildContent(context, item);
@@ -241,6 +246,32 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           TagList(tags: item.tags),
         const SizedBox(height: 16),
 
+        // 记忆点
+        Row(
+          children: [
+            const Text(
+              '记忆点',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const Spacer(),
+            if (!_isEditing && item.memories.isEmpty)
+              Text(
+                '暂无记忆点',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_isEditing)
+          MemoryInputField(
+            memories: _memories,
+            onChanged: (value) => setState(() => _memories = value),
+            hintText: '添加记忆点...',
+          )
+        else
+          MemoryList(memories: item.memories),
+        const SizedBox(height: 16),
+
         // 时间事件
         Row(
           children: [
@@ -281,6 +312,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         _tags = List.from(_originalItem!.tags);
         _timeEvents = List.from(_originalItem!.timeEvents);
         _photos = List.from(_originalItem!.photos);
+        _memories = List.from(_originalItem!.memories);
       }
     });
   }
@@ -299,6 +331,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
       photos: _photos,
       tags: _tags,
       timeEvents: _timeEvents,
+      memories: _memories,
     );
 
     try {
