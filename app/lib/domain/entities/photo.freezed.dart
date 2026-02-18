@@ -38,6 +38,9 @@ mixin _$Photo {
   /// 创建时间
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
+  /// 文件扩展名（如 jpg, png, webp）
+  String? get fileExtension => throw _privateConstructorUsedError;
+
   /// Serializes this Photo to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -58,7 +61,8 @@ abstract class $PhotoCopyWith<$Res> {
       String s3Key,
       String? localPath,
       UploadStatus uploadStatus,
-      DateTime? createdAt});
+      DateTime? createdAt,
+      String? fileExtension});
 }
 
 /// @nodoc
@@ -82,6 +86,7 @@ class _$PhotoCopyWithImpl<$Res, $Val extends Photo>
     Object? localPath = freezed,
     Object? uploadStatus = null,
     Object? createdAt = freezed,
+    Object? fileExtension = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -108,6 +113,10 @@ class _$PhotoCopyWithImpl<$Res, $Val extends Photo>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      fileExtension: freezed == fileExtension
+          ? _value.fileExtension
+          : fileExtension // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -125,7 +134,8 @@ abstract class _$$PhotoImplCopyWith<$Res> implements $PhotoCopyWith<$Res> {
       String s3Key,
       String? localPath,
       UploadStatus uploadStatus,
-      DateTime? createdAt});
+      DateTime? createdAt,
+      String? fileExtension});
 }
 
 /// @nodoc
@@ -147,6 +157,7 @@ class __$$PhotoImplCopyWithImpl<$Res>
     Object? localPath = freezed,
     Object? uploadStatus = null,
     Object? createdAt = freezed,
+    Object? fileExtension = freezed,
   }) {
     return _then(_$PhotoImpl(
       id: null == id
@@ -173,6 +184,10 @@ class __$$PhotoImplCopyWithImpl<$Res>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      fileExtension: freezed == fileExtension
+          ? _value.fileExtension
+          : fileExtension // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -186,7 +201,8 @@ class _$PhotoImpl implements _Photo {
       required this.s3Key,
       this.localPath,
       this.uploadStatus = UploadStatus.pending,
-      this.createdAt});
+      this.createdAt,
+      this.fileExtension});
 
   factory _$PhotoImpl.fromJson(Map<String, dynamic> json) =>
       _$$PhotoImplFromJson(json);
@@ -216,9 +232,13 @@ class _$PhotoImpl implements _Photo {
   @override
   final DateTime? createdAt;
 
+  /// 文件扩展名（如 jpg, png, webp）
+  @override
+  final String? fileExtension;
+
   @override
   String toString() {
-    return 'Photo(id: $id, itemId: $itemId, s3Key: $s3Key, localPath: $localPath, uploadStatus: $uploadStatus, createdAt: $createdAt)';
+    return 'Photo(id: $id, itemId: $itemId, s3Key: $s3Key, localPath: $localPath, uploadStatus: $uploadStatus, createdAt: $createdAt, fileExtension: $fileExtension)';
   }
 
   @override
@@ -234,13 +254,15 @@ class _$PhotoImpl implements _Photo {
             (identical(other.uploadStatus, uploadStatus) ||
                 other.uploadStatus == uploadStatus) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.fileExtension, fileExtension) ||
+                other.fileExtension == fileExtension));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, itemId, s3Key, localPath, uploadStatus, createdAt);
+  int get hashCode => Object.hash(runtimeType, id, itemId, s3Key, localPath,
+      uploadStatus, createdAt, fileExtension);
 
   /// Create a copy of Photo
   /// with the given fields replaced by the non-null parameter values.
@@ -265,7 +287,8 @@ abstract class _Photo implements Photo {
       required final String s3Key,
       final String? localPath,
       final UploadStatus uploadStatus,
-      final DateTime? createdAt}) = _$PhotoImpl;
+      final DateTime? createdAt,
+      final String? fileExtension}) = _$PhotoImpl;
 
   factory _Photo.fromJson(Map<String, dynamic> json) = _$PhotoImpl.fromJson;
 
@@ -292,6 +315,10 @@ abstract class _Photo implements Photo {
   /// 创建时间
   @override
   DateTime? get createdAt;
+
+  /// 文件扩展名（如 jpg, png, webp）
+  @override
+  String? get fileExtension;
 
   /// Create a copy of Photo
   /// with the given fields replaced by the non-null parameter values.

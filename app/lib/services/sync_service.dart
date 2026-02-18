@@ -66,6 +66,26 @@ class SyncService {
   final SyncMetadataDao _metadataDao = SyncMetadataDao();
   final PhotoDao _photoDao = PhotoDao();
 
+  /// 根据文件扩展名获取 Content-Type
+  static String? _getContentTypeForExtension(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+      case 'heif':
+        return 'image/heic';
+      default:
+        return null; // 未知类型，让 OSS 自动处理
+    }
+  }
+
   /// 执行同步
   Stream<SyncProgress> sync({required String accountId}) async* {
     yield SyncProgress(stage: SyncStage.preparing, progress: 0.0);
@@ -192,14 +212,22 @@ class SyncService {
       for (var photo in claimedPhotos) {
         final photoId = photo['id'] as String;
         final localPath = photo['local_path'] as String?;
+        final fileExtension = photo['file_extension'] as String?;
 
         if (localPath != null) {
           final file = File(localPath);
           if (await file.exists()) {
             try {
+              // 根据 file_extension 设置 Content-Type
+              String? contentType;
+              if (fileExtension != null) {
+                contentType = _getContentTypeForExtension(fileExtension);
+              }
+
               await ossService.uploadFile(
                 file: file,
                 key: photo['s3_key'] as String,
+                contentType: contentType,
               );
               // 成功：状态 uploading -> completed
               await _photoDao.update(photoId, {'upload_status': 'completed'});

@@ -49,9 +49,25 @@ class AppConfig {
     return '$s3AccountsPrefix/$accountId/$s3AppPath/$s3DatabasePath/$databaseName';
   }
 
-  /// 构建照片的 S3 Key
-  static String buildPhotoKey(String accountId, String photoId) {
-    return '$s3AccountsPrefix/$accountId/$s3AppPath/$s3PhotosPath/$photoId';
+  /// 构建照片的 S3 Key（带日期分区和文件扩展名）
+  ///
+  /// 路径格式: accounts/{shortAccountId}/uploading/photos/{yyyy}/{MM}/{shortPhotoId}.{extension}
+  /// - shortAccountId: accountId 的前 8 位
+  /// - 日期分区: yyyy/MM（用于按月组织照片）
+  /// - shortPhotoId: photoId 的前 8 位（缩短路径长度）
+  /// - extension: 文件扩展名（如 jpg, png）
+  static String buildPhotoKey(
+    String accountId,
+    String photoId,
+    String extension,
+  ) {
+    final shortAccountId = accountId.substring(0, 8);
+    final shortPhotoId = photoId.substring(0, 8);
+    final now = DateTime.now();
+    final year = now.year.toString();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return '$s3AccountsPrefix/$shortAccountId/$s3AppPath/$s3PhotosPath/$year/$month/$day/$shortPhotoId.$extension';
   }
 
   /// 每个物品最大照片数量

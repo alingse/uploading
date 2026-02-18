@@ -48,7 +48,7 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -99,6 +99,7 @@ class AppDatabase {
         local_path TEXT,
         upload_status TEXT NOT NULL,
         created_at INTEGER NOT NULL,
+        file_extension TEXT,
         FOREIGN KEY (item_id) REFERENCES items (id) ON DELETE CASCADE
       )
     ''');
@@ -168,6 +169,9 @@ class AppDatabase {
     }
     if (oldVersion < 5) {
       await migrateToVersion5(db);
+    }
+    if (oldVersion < 6) {
+      await migrateToVersion6(db);
     }
   }
 
@@ -316,7 +320,8 @@ class AppDatabase {
           final parts = oldS3Key.split('/');
           if (parts.length >= 4) {
             final accountId = parts[1]; // accounts/{accountId}/photos/{photoId}
-            final newS3Key = AppConfig.buildPhotoKey(accountId, photoId);
+            // 旧版本没有扩展名，使用默认值
+            final newS3Key = AppConfig.buildPhotoKey(accountId, photoId, 'jpg');
 
             // 3. 更新到新的路径
             await txn.update(
@@ -361,6 +366,48 @@ class AppDatabase {
         );
       }
     }
+  }
+
+  /// 迁移到版本6：添加 file_extension 列并优化照片路径
+  ///
+  /// 1. 添加 file_extension 列
+  /// 2. 为已有照片推断扩展名（从 local_path 或 s3_key）
+  Future<void> migrateToVersion6(Database db) async {
+    await db.transaction((txn) async {
+      // 1. 添加 file_extension 列
+      await txn.execute('ALTER TABLE photos ADD COLUMN file_extension TEXT');
+
+      // 2. 获取所有照片记录
+      final photos = await txn.query('photos');
+
+      for (var photo in photos) {
+        final photoId = photo['id'] as String;
+        final localPath = photo['local_path'] as String?;
+        final s3Key = photo['s3_key'] as String;
+
+        // 推断文件扩展名
+        String? extension;
+        if (localPath != null && localPath.contains('.')) {
+          final parts = localPath.split('.');
+          extension = parts.last.toLowerCase();
+          if (extension == 'jpeg') extension = 'jpg';
+        } else if (s3Key.contains('.')) {
+          final parts = s3Key.split('.');
+          extension = parts.last.toLowerCase();
+          if (extension == 'jpeg') extension = 'jpg';
+        }
+
+        // 更新扩展名
+        if (extension != null) {
+          await txn.update(
+            'photos',
+            {'file_extension': extension},
+            where: 'id = ?',
+            whereArgs: [photoId],
+          );
+        }
+      }
+    });
   }
 
   /// 检查表是否存在

@@ -46,6 +46,9 @@ class Photo with _$Photo {
 
     /// 创建时间
     DateTime? createdAt,
+
+    /// 文件扩展名（如 jpg, png, webp）
+    String? fileExtension,
   }) = _Photo;
 
   factory Photo.fromJson(Map<String, dynamic> json) => _$PhotoFromJson(json);
@@ -65,6 +68,7 @@ extension PhotoX on Photo {
       'local_path': localPath,
       'upload_status': _$UploadStatusEnumMap[uploadStatus]!,
       'created_at': createdAt?.millisecondsSinceEpoch,
+      'file_extension': fileExtension,
     };
   }
 }
@@ -82,6 +86,7 @@ class PhotoDbConverter {
       'createdAt': map['created_at'] == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
+      'fileExtension': map['file_extension'] as String?,
     });
   }
 
@@ -90,15 +95,27 @@ class PhotoDbConverter {
   /// [localPath] 本地文件路径
   /// [itemId] 关联的物品 ID
   /// [accountId] S3 账户 ID，用于构建 S3 Key
-  /// [buildS3Key] 构建 S3 Key 的函数，默认格式为 `accounts/{accountId}/uploading/photos/{photoId}`
+  /// [buildS3Key] 构建 S3 Key 的函数，默认格式为 `accounts/{shortAccountId}/uploading/photos/{yyyy}/{MM}/{dd}/{shortPhotoId}.{extension}`
   static Photo createForUpload({
     required String localPath,
     required String itemId,
     required String accountId,
-    String Function(String accountId, String photoId)? buildS3Key,
+    String Function(String accountId, String photoId, String extension)? buildS3Key,
   }) {
     final photoId = const Uuid().v4();
-    final s3Key = (buildS3Key ?? _defaultS3KeyBuilder)(accountId, photoId);
+
+    // 从本地文件路径中提取文件扩展名
+    String extension = 'jpg'; // 默认为 jpg
+    final pathParts = localPath.split('.');
+    if (pathParts.length > 1) {
+      final ext = pathParts.last.toLowerCase();
+      // 验证扩展名是否为支持的图片格式
+      if (const ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'].contains(ext)) {
+        extension = ext == 'jpeg' ? 'jpg' : ext; // jpeg 统一为 jpg
+      }
+    }
+
+    final s3Key = (buildS3Key ?? _defaultS3KeyBuilder)(accountId, photoId, extension);
     return Photo(
       id: photoId,
       itemId: itemId,
@@ -106,11 +123,22 @@ class PhotoDbConverter {
       localPath: localPath,
       uploadStatus: UploadStatus.pending,
       createdAt: DateTime.now(),
+      fileExtension: extension,
     );
   }
 
   /// 默认 S3 Key 构建函数
-  static String _defaultS3KeyBuilder(String accountId, String photoId) {
-    return 'accounts/$accountId/uploading/photos/$photoId';
+  static String _defaultS3KeyBuilder(
+    String accountId,
+    String photoId,
+    String extension,
+  ) {
+    final shortAccountId = accountId.substring(0, 8);
+    final shortPhotoId = photoId.substring(0, 8);
+    final now = DateTime.now();
+    final year = now.year.toString();
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return 'accounts/$shortAccountId/uploading/photos/$year/$month/$day/$shortPhotoId.$extension';
   }
 }

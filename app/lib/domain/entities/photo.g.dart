@@ -17,6 +17,7 @@ _$PhotoImpl _$$PhotoImplFromJson(Map<String, dynamic> json) => _$PhotoImpl(
       createdAt: json['createdAt'] == null
           ? null
           : DateTime.parse(json['createdAt'] as String),
+      fileExtension: json['fileExtension'] as String?,
     );
 
 Map<String, dynamic> _$$PhotoImplToJson(_$PhotoImpl instance) =>
@@ -27,6 +28,7 @@ Map<String, dynamic> _$$PhotoImplToJson(_$PhotoImpl instance) =>
       'localPath': instance.localPath,
       'uploadStatus': _$UploadStatusEnumMap[instance.uploadStatus]!,
       'createdAt': instance.createdAt?.toIso8601String(),
+      'fileExtension': instance.fileExtension,
     };
 
 const _$UploadStatusEnumMap = {
