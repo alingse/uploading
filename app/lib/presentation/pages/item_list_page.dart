@@ -5,7 +5,10 @@ import '../../../domain/entities/item.dart';
 import '../../../domain/entities/presence.dart';
 import '../providers/item_provider.dart';
 import '../widgets/item_card.dart';
+import '../widgets/sync_status_indicator.dart';
 import 'item_detail_page.dart';
+import 'app_logs_page.dart';
+import 'account_list_page.dart';
 
 /// 物品列表页面
 ///
@@ -36,6 +39,8 @@ class _ItemListPageState extends ConsumerState<ItemListPage> {
         title: _showSearch ? _buildSearchField() : const Text('物品列表'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // 同步状态指示器
+          const SyncStatusIndicator(),
           IconButton(
             icon: Icon(_showSearch ? Icons.close : Icons.search),
             tooltip: '搜索',
@@ -74,6 +79,46 @@ class _ItemListPageState extends ConsumerState<ItemListPage> {
                       Text(presence.displayName),
                     ],
                   ),
+                ),
+              ),
+            ],
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: '更多',
+            onSelected: (value) {
+              switch (value) {
+                case 'logs':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const AppLogsPage()),
+                  );
+                  break;
+                case 'accounts':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const AccountListPage()),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logs',
+                child: Row(
+                  children: [
+                    Icon(Icons.notes_outlined),
+                    SizedBox(width: 8),
+                    Text('查看日志'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'accounts',
+                child: Row(
+                  children: [
+                    Icon(Icons.account_circle_outlined),
+                    SizedBox(width: 8),
+                    Text('云账户管理'),
+                  ],
                 ),
               ),
             ],

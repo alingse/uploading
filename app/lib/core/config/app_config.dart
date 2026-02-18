@@ -40,16 +40,17 @@ class AppConfig {
 
   /// S3 路径前缀
   static const String s3AccountsPrefix = 'accounts';
+  static const String s3AppPath = 'uploading';
   static const String s3DatabasePath = 'database';
   static const String s3PhotosPath = 'photos';
 
   /// 构建账户数据库的 S3 Key
   static String buildAccountDbKey(String accountId) {
-    return '$s3AccountsPrefix/$accountId/$s3DatabasePath/$databaseName';
+    return '$s3AccountsPrefix/$accountId/$s3AppPath/$s3DatabasePath/$databaseName';
   }
 
   /// 构建照片的 S3 Key
   static String buildPhotoKey(String accountId, String photoId) {
-    return '$s3AccountsPrefix/$accountId/$s3PhotosPath/$photoId';
+    return '$s3AccountsPrefix/$accountId/$s3AppPath/$s3PhotosPath/$photoId';
   }
 }

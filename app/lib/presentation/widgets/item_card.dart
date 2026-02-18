@@ -7,6 +7,7 @@ import '../../../domain/entities/item.dart';
 import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/time_event.dart';
 import '../../../services/oss_service.dart';
+import '../../../services/logging_service.dart';
 import '../providers/s3_account_provider.dart';
 import 'presence_chip.dart';
 import 'tag_chip.dart';
@@ -172,7 +173,12 @@ class ItemCard extends ConsumerWidget {
 
   /// 构建图片
   Widget _buildPhotoImage(WidgetRef ref, Photo photo) {
-    // 优先使用本地路径
+    // 如果已上传到云端，优先使用 S3
+    if (photo.uploadStatus == UploadStatus.completed) {
+      return _buildOssImage(ref, photo);
+    }
+
+    // 未上传完成，使用本地文件
     if (photo.localPath != null) {
       final file = File(photo.localPath!);
       return Image.file(
@@ -181,12 +187,26 @@ class ItemCard extends ConsumerWidget {
         height: 80,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
+          LoggingService().error(
+            '卡片本地图片加载失败（未上传）',
+            context: {
+              'photoId': photo.id,
+              'localPath': photo.localPath,
+              'uploadStatus': photo.uploadStatus.name,
+            },
+            error: error,
+            stackTrace: stackTrace,
+          );
           return _buildThumbnailPlaceholder();
         },
       );
     }
 
-    // 从 OSS 加载
+    return _buildThumbnailPlaceholder();
+  }
+
+  /// 从 OSS 加载图片
+  Widget _buildOssImage(WidgetRef ref, Photo photo) {
     final activeAccountAsync = ref.watch(activeAccountProvider);
     return activeAccountAsync.when(
       data: (account) {
@@ -205,6 +225,27 @@ class ItemCard extends ConsumerWidget {
             return _buildThumbnailLoadingPlaceholder();
           },
           errorBuilder: (context, error, stackTrace) {
+            LoggingService().error(
+              '卡片 OSS 图片加载失败',
+              context: {
+                'photoId': photo.id,
+                's3Key': photo.s3Key,
+                'imageUrl': imageUrl,
+                'account': account.bucket,
+              },
+              error: error,
+              stackTrace: stackTrace,
+            );
+            // OSS 失败，尝试降级到本地
+            if (photo.localPath != null) {
+              return Image.file(
+                File(photo.localPath!),
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildThumbnailPlaceholder(),
+              );
+            }
             return _buildThumbnailPlaceholder();
           },
         );

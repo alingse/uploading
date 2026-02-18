@@ -1,16 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'data/datasources/local/dao/s3_account_dao.dart';
 import 'presentation/pages/account_list_page.dart';
 import 'presentation/pages/camera_page.dart';
 import 'presentation/pages/item_list_page.dart';
+import 'services/auto_sync_manager.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    AutoSyncManager.instance.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 应用恢复到前台时触发同步
+    if (state == AppLifecycleState.resumed) {
+      _triggerSyncOnResume();
+    }
+  }
+
+  /// 应用恢复时触发同步
+  Future<void> _triggerSyncOnResume() async {
+    try {
+      // 获取激活账户
+      final accountDao = S3AccountDao();
+      final activeAccount = await accountDao.getActiveAccount();
+
+      if (activeAccount != null) {
+        final accountId = activeAccount['id'] as String;
+        final syncManager = AutoSyncManager.instance;
+
+        // 启动定期同步
+        syncManager.startPeriodicSync(accountId);
+
+        // 触发一次同步
+        await syncManager.requestSync(accountId);
+      }
+    } catch (e) {
+      // 忽略同步错误，不影响应用正常使用
+      debugPrint('触发同步失败: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../data/datasources/local/dao/item_dao.dart';
 import '../../../data/datasources/local/dao/photo_dao.dart';
 import '../../../domain/entities/item.dart';
 import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/presence.dart';
+import '../../../services/auto_sync_manager.dart';
 import '../providers/s3_account_provider.dart';
 import 'error_log_page.dart';
 
@@ -97,8 +99,8 @@ class _CameraPageState extends ConsumerState<CameraPage> {
       final activeAccount = await ref.read(activeAccountProvider.future);
       final accountId = activeAccount?.id ?? 'default';
 
-      // 创建照片 S3 Key（使用激活账户 ID）
-      final s3Key = 'accounts/$accountId/photos/$photoId';
+      // 创建照片 S3 Key（使用 AppConfig.buildPhotoKey）
+      final s3Key = AppConfig.buildPhotoKey(accountId, photoId);
 
       // 创建照片
       final photo = Photo(
@@ -141,9 +143,13 @@ class _CameraPageState extends ConsumerState<CameraPage> {
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('保存成功')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('保存成功，正在同步...')),
+        );
+
+        // 触发自动同步
+        final syncManager = AutoSyncManager.instance;
+        await syncManager.requestSync(accountId);
       }
     } catch (e, stackTrace) {
       if (mounted) {

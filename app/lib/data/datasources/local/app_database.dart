@@ -48,7 +48,7 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -162,6 +162,9 @@ class AppDatabase {
     }
     if (oldVersion < 3) {
       await migrateToVersion3(db);
+    }
+    if (oldVersion < 4) {
+      await migrateToVersion4(db);
     }
   }
 
@@ -284,6 +287,44 @@ class AppDatabase {
           WHERE id != NEW.id AND is_active = 1;
         END
       ''');
+    });
+  }
+
+  /// 迁移到版本4：更新 S3 路径结构
+  ///
+  /// 添加 /uploading/ 路径段，使 S3 存储结构更具品牌识别度：
+  /// - 照片路径：accounts/{id}/photos/{photoId} → accounts/{id}/uploading/photos/{photoId}
+  /// - 数据库路径：accounts/{id}/database/ → accounts/{id}/uploading/database/
+  Future<void> migrateToVersion4(Database db) async {
+    // 更新所有照片的 s3_key
+    await db.transaction((txn) async {
+      // 1. 获取所有照片记录
+      final photos = await txn.query('photos');
+
+      for (var photo in photos) {
+        final photoId = photo['id'] as String;
+        final oldS3Key = photo['s3_key'] as String;
+
+        // 2. 解析旧的 s3_key 并构建新的
+        // 旧格式: accounts/{accountId}/photos/{photoId}
+        // 新格式: accounts/{accountId}/uploading/photos/{photoId}
+        if (oldS3Key.startsWith('accounts/') &&
+            !oldS3Key.contains('/uploading/')) {
+          final parts = oldS3Key.split('/');
+          if (parts.length >= 4) {
+            final accountId = parts[1]; // accounts/{accountId}/photos/{photoId}
+            final newS3Key = AppConfig.buildPhotoKey(accountId, photoId);
+
+            // 3. 更新到新的路径
+            await txn.update(
+              'photos',
+              {'s3_key': newS3Key},
+              where: 'id = ?',
+              whereArgs: [photoId],
+            );
+          }
+        }
+      }
     });
   }
 

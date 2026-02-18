@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_oss_aliyun/flutter_oss_aliyun.dart';
 import '../domain/entities/s3_account.dart';
+import 'logging_service.dart';
 
 /// 阿里云 OSS 服务
 ///
@@ -261,10 +262,22 @@ class OssService {
   ///
   /// 阿里云 OSS 的公共 URL 格式: https://{bucket}.{endpoint}/{key}
   /// 注意: endpoint 通常包含协议，需要移除 https:// 前缀
+  /// key 会被 URL 编码以处理特殊字符（空格、中文等）
   String getPublicUrl(String key) {
     // 移除 endpoint 的协议前缀
     final cleanEndpoint = endpoint.replaceFirst('https://', '').replaceFirst('http://', '');
-    return 'https://$bucket.$cleanEndpoint/$key';
+    // 对 key 进行 URL 编码，但保留斜杠
+    final encodedKey = Uri.encodeComponent(key);
+    final url = 'https://$bucket.$cleanEndpoint/$encodedKey';
+
+    // 记录 URL 构建日志用于调试
+    LoggingService().debug('构建 OSS URL', context: {
+      'key': key,
+      'encodedKey': encodedKey,
+      'url': url,
+    });
+
+    return url;
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/entities/photo.dart';
 import '../../../services/oss_service.dart';
+import '../../../services/logging_service.dart';
 import '../providers/s3_account_provider.dart';
 
 /// 照片网格组件
@@ -71,22 +72,46 @@ class PhotoGrid extends ConsumerWidget {
   }
 
   Widget _buildPhotoThumbnail(BuildContext context, WidgetRef ref, Photo photo) {
-    // 如果有本地路径，优先显示本地图片
+    // 如果已上传到云端，优先使用 S3
+    if (photo.uploadStatus == UploadStatus.completed) {
+      return _buildOssImage(context, ref, photo);
+    }
+
+    // 未上传完成，使用本地文件
     if (photo.localPath != null) {
       return Image.file(
         File(photo.localPath!),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
+          LoggingService().error(
+            '本地图片加载失败（未上传）',
+            context: {
+              'photoId': photo.id,
+              'localPath': photo.localPath,
+              'uploadStatus': photo.uploadStatus.name,
+            },
+            error: error,
+            stackTrace: stackTrace,
+          );
           return _buildPlaceholder();
         },
       );
     }
 
-    // 从 OSS 加载图片
+    // 既没上传也没本地文件，显示占位符
+    return _buildPlaceholder();
+  }
+
+  /// 从 OSS 加载图片
+  Widget _buildOssImage(BuildContext context, WidgetRef ref, Photo photo) {
     final activeAccountAsync = ref.watch(activeAccountProvider);
     return activeAccountAsync.when(
       data: (account) {
         if (account == null) {
+          LoggingService().warning(
+            '照片已上传但未配置账户',
+            context: {'photoId': photo.id, 's3Key': photo.s3Key},
+          );
           return _buildPlaceholder();
         }
         final ossService = OssService.fromAccount(account);
@@ -99,6 +124,26 @@ class PhotoGrid extends ConsumerWidget {
             return _buildLoadingPlaceholder();
           },
           errorBuilder: (context, error, stackTrace) {
+            LoggingService().error(
+              'OSS 图片加载失败',
+              context: {
+                'photoId': photo.id,
+                's3Key': photo.s3Key,
+                'imageUrl': imageUrl,
+                'account': account.bucket,
+              },
+              error: error,
+              stackTrace: stackTrace,
+            );
+            // OSS 加载失败，尝试降级到本地文件
+            if (photo.localPath != null) {
+              LoggingService().info('降级到本地文件', context: {'localPath': photo.localPath});
+              return Image.file(
+                File(photo.localPath!),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildPlaceholder(),
+              );
+            }
             return _buildPlaceholder();
           },
         );
@@ -235,6 +280,56 @@ class PhotoPreviewDialog extends ConsumerWidget {
   }
 
   Widget _buildFullScreenPhoto(BuildContext context, WidgetRef ref, Photo photo) {
+    // 如果已上传到云端，优先使用 S3
+    if (photo.uploadStatus == UploadStatus.completed) {
+      return _buildFullScreenOssImage(context, ref, photo);
+    }
+
+    // 未上传完成，使用本地文件
+    if (photo.localPath != null) {
+      return Image.file(
+        File(photo.localPath!),
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          LoggingService().error(
+            '全屏预览本地图片加载失败（未上传）',
+            context: {
+              'photoId': photo.id,
+              'localPath': photo.localPath,
+              'uploadStatus': photo.uploadStatus.name,
+            },
+            error: error,
+            stackTrace: stackTrace,
+          );
+          return const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline, color: Colors.white, size: 48),
+                SizedBox(height: 16),
+                Text('图片加载失败', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    // 既没上传也没本地文件
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.cloud_off, color: Colors.white, size: 48),
+          SizedBox(height: 16),
+          Text('图片未上传', style: TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  /// 从 OSS 加载全屏图片
+  Widget _buildFullScreenOssImage(BuildContext context, WidgetRef ref, Photo photo) {
     final activeAccountAsync = ref.watch(activeAccountProvider);
 
     return activeAccountAsync.when(
@@ -261,16 +356,42 @@ class PhotoPreviewDialog extends ConsumerWidget {
             );
           },
           errorBuilder: (context, error, stackTrace) {
+            LoggingService().error(
+              '全屏预览 OSS 图片加载失败',
+              context: {
+                'photoId': photo.id,
+                's3Key': photo.s3Key,
+                'imageUrl': imageUrl,
+                'account': account.bucket,
+              },
+              error: error,
+              stackTrace: stackTrace,
+            );
+            // OSS 加载失败，尝试降级到本地文件
+            if (photo.localPath != null) {
+              LoggingService().info('降级到本地文件', context: {'localPath': photo.localPath});
+              return Image.file(
+                File(photo.localPath!),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.white, size: 48),
+                      SizedBox(height: 16),
+                      Text('图片加载失败', style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ),
+              );
+            }
             return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.error_outline, color: Colors.white, size: 48),
                   SizedBox(height: 16),
-                  Text(
-                    '图片加载失败',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  Text('图片加载失败', style: TextStyle(color: Colors.white)),
                 ],
               ),
             );
