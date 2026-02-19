@@ -25,8 +25,14 @@
   </defs>
 
   <!-- Background Hexagon -->
+  <!-- White wide border (24px) -->
   <polygon points="512,60 900,280 900,540 900,744 512,964 124,744 124,540 124,280"
            fill="url(#mainGrad)"
+           stroke="#ffffff"
+           stroke-width="24"/>
+  <!-- White border (4px) -->
+  <polygon points="512,60 900,280 900,540 900,744 512,964 124,744 124,540 124,280"
+           fill="none"
            stroke="#ffffff"
            stroke-width="4"/>
 
