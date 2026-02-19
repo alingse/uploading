@@ -35,8 +35,11 @@ class Photo with _$Photo {
     /// 关联的物品 ID
     String? itemId,
 
-    /// S3 存储键
+    /// S3 存储键（原图）
     required String s3Key,
+
+    /// S3 存储键（缩略图）
+    String? s3KeyThumbnail,
 
     /// 本地文件路径（可选）
     String? localPath,
@@ -65,6 +68,7 @@ extension PhotoX on Photo {
       'id': id,
       'item_id': itemId,
       's3_key': s3Key,
+      's3_key_thumbnail': s3KeyThumbnail,
       'local_path': localPath,
       'upload_status': _$UploadStatusEnumMap[uploadStatus]!,
       'created_at': createdAt?.millisecondsSinceEpoch,
@@ -81,6 +85,7 @@ class PhotoDbConverter {
       'id': map['id'] as String,
       'itemId': map['item_id'] as String?,
       's3Key': map['s3_key'] as String,
+      's3KeyThumbnail': map['s3_key_thumbnail'] as String?,
       'localPath': map['local_path'] as String?,
       'uploadStatus': map['upload_status'] as String?,
       'createdAt': map['created_at'] == null
@@ -92,21 +97,25 @@ class PhotoDbConverter {
 
   /// 创建待上传的照片实体
   ///
-  /// [localPath] 本地文件路径
+  /// [originalLocalPath] 原图本地文件路径
+  /// [thumbnailLocalPath] 缩略图本地文件路径
   /// [itemId] 关联的物品 ID
   /// [accountId] S3 账户 ID，用于构建 S3 Key
   /// [buildS3Key] 构建 S3 Key 的函数，默认格式为 `accounts/{shortAccountId}/uploading/photos/{yyyy}/{MM}/{dd}/{shortPhotoId}.{extension}`
+  /// [buildThumbnailKey] 构建缩略图 S3 Key 的函数，从原图 Key 推导，默认为 `{originalKey}-thumb.{ext}`
   static Photo createForUpload({
-    required String localPath,
+    required String originalLocalPath,
+    required String thumbnailLocalPath,
     required String itemId,
     required String accountId,
     String Function(String accountId, String photoId, String extension)? buildS3Key,
+    String Function(String originalS3Key)? buildThumbnailKey,
   }) {
     final photoId = const Uuid().v4();
 
     // 从本地文件路径中提取文件扩展名
     String extension = 'jpg'; // 默认为 jpg
-    final pathParts = localPath.split('.');
+    final pathParts = originalLocalPath.split('.');
     if (pathParts.length > 1) {
       final ext = pathParts.last.toLowerCase();
       // 验证扩展名是否为支持的图片格式
@@ -116,11 +125,15 @@ class PhotoDbConverter {
     }
 
     final s3Key = (buildS3Key ?? _defaultS3KeyBuilder)(accountId, photoId, extension);
+    // 缩略图 S3 Key 从原图 Key 推导（依赖注入）
+    final s3KeyThumbnail = (buildThumbnailKey ?? _defaultThumbnailKeyBuilder)(s3Key);
+
     return Photo(
       id: photoId,
       itemId: itemId,
       s3Key: s3Key,
-      localPath: localPath,
+      s3KeyThumbnail: s3KeyThumbnail,
+      localPath: originalLocalPath,
       uploadStatus: UploadStatus.pending,
       createdAt: DateTime.now(),
       fileExtension: extension,
@@ -140,5 +153,18 @@ class PhotoDbConverter {
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
     return 'accounts/$shortAccountId/uploading/photos/$year/$month/$day/$shortPhotoId.$extension';
+  }
+
+  /// 默认缩略图 S3 Key 构建函数
+  ///
+  /// 从原图 S3 Key 推导缩略图 Key
+  /// 原图: accounts/{accountId}/uploading/photos/{yyyy}/{MM}/{dd}/{photoId}.jpg
+  /// 缩略图: accounts/{accountId}/uploading/photos/{yyyy}/{MM}/{dd}/{photoId}-thumb.jpg
+  static String _defaultThumbnailKeyBuilder(String originalS3Key) {
+    final lastDotIndex = originalS3Key.lastIndexOf('.');
+    if (lastDotIndex == -1) return '$originalS3Key-thumb';
+    final extension = originalS3Key.substring(lastDotIndex);
+    final base = originalS3Key.substring(0, lastDotIndex);
+    return '$base-thumb$extension';
   }
 }

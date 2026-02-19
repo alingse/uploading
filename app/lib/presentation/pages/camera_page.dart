@@ -13,6 +13,7 @@ import '../../../domain/entities/memory.dart';
 import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/presence.dart';
 import '../../../services/auto_sync_manager.dart';
+import '../../../services/image_compress_service.dart';
 import '../providers/s3_account_provider.dart';
 import '../widgets/memory_chip.dart';
 import 'error_log_page.dart';
@@ -31,8 +32,11 @@ class _CameraPageState extends ConsumerState<CameraPage> {
   final _tagsController = TextEditingController();
 
   // ignore: prefer_final_fields
-  List<File> _imageFiles = [];
+  List<File> _originalFiles = []; // 原图文件
+  // ignore: prefer_final_fields
+  List<File> _thumbnailFiles = []; // 缩略图文件
   bool _isSaving = false;
+  String? _compressStatus;
   Presence _selectedPresence = Presence.physical;
   List<Memory> _memories = [];
 
@@ -45,7 +49,7 @@ class _CameraPageState extends ConsumerState<CameraPage> {
 
   /// 检查是否可以添加照片
   bool _canAddPhoto() {
-    if (_imageFiles.length >= AppConfig.maxPhotosPerItem) {
+    if (_originalFiles.length >= AppConfig.maxPhotosPerItem) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('最多只能添加 ${AppConfig.maxPhotosPerItem} 张照片')),
@@ -63,11 +67,10 @@ class _CameraPageState extends ConsumerState<CameraPage> {
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 85,
       );
 
-      if (photo != null && mounted) {
-        setState(() => _imageFiles.add(File(photo.path)));
+      if (photo != null) {
+        await _processAndAddImage(File(photo.path));
       }
     } catch (e) {
       if (mounted) {
@@ -85,11 +88,10 @@ class _CameraPageState extends ConsumerState<CameraPage> {
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
       );
 
-      if (photo != null && mounted) {
-        setState(() => _imageFiles.add(File(photo.path)));
+      if (photo != null) {
+        await _processAndAddImage(File(photo.path));
       }
     } catch (e) {
       if (mounted) {
@@ -102,12 +104,68 @@ class _CameraPageState extends ConsumerState<CameraPage> {
 
   /// 删除照片
   void _removePhoto(int index) {
-    setState(() => _imageFiles.removeAt(index));
+    setState(() {
+      _originalFiles.removeAt(index);
+      _thumbnailFiles.removeAt(index);
+    });
+  }
+
+  /// 处理并添加图片（包含压缩逻辑）
+  Future<void> _processAndAddImage(File imageFile) async {
+    if (!mounted) return;
+
+    setState(() => _compressStatus = '正在处理图片...');
+
+    try {
+      // 使用双轨压缩服务（原图 + 缩略图）
+      final result = await ImageCompressService.instance.compressDual(
+        imageFile,
+        progress: (progress) {
+          if (mounted) {
+            setState(() {
+              _compressStatus = '处理中 ${((progress.progress * 100).toInt())}%';
+            });
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _originalFiles.add(result.originalFile);
+          _thumbnailFiles.add(result.thumbnailFile);
+          _compressStatus = null;
+        });
+
+        // 显示处理完成提示
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('图片已处理'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // 处理失败，使用原图（降级处理）
+      if (mounted) {
+        setState(() {
+          _originalFiles.add(imageFile);
+          // 生成缩略图路径作为占位
+          final thumbPath = ImageCompressDualResult.getThumbnailPath(imageFile.path);
+          _thumbnailFiles.add(File(thumbPath));
+          _compressStatus = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('图片处理失败，使用原图: $e')),
+        );
+      }
+    }
   }
 
   /// 保存物品
   Future<void> _saveItem() async {
-    if (_imageFiles.isEmpty) {
+    if (_originalFiles.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('请先拍照或选择图片')));
@@ -124,15 +182,21 @@ class _CameraPageState extends ConsumerState<CameraPage> {
       final activeAccount = await ref.read(activeAccountProvider.future);
       final accountId = activeAccount?.id ?? 'default';
 
-      // 创建多个照片实体
-      final photos = _imageFiles.map((imageFile) {
-        return PhotoDbConverter.createForUpload(
-          localPath: imageFile.path,
+      // 创建多个照片实体（原图 + 缩略图）
+      final photos = <Photo>[];
+      for (int i = 0; i < _originalFiles.length; i++) {
+        final originalFile = _originalFiles[i];
+        final thumbnailFile = _thumbnailFiles[i];
+
+        photos.add(PhotoDbConverter.createForUpload(
+          originalLocalPath: originalFile.path,
+          thumbnailLocalPath: thumbnailFile.path,
           itemId: itemId,
           accountId: accountId,
           buildS3Key: AppConfig.buildPhotoKey,
-        );
-      }).toList();
+          buildThumbnailKey: AppConfig.buildThumbnailKey,
+        ));
+      }
 
       // 解析标签（逗号分隔）
       final tags = _tagsController.text
@@ -207,9 +271,9 @@ class _CameraPageState extends ConsumerState<CameraPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('记录物品${_imageFiles.isNotEmpty ? ' (${_imageFiles.length}/${AppConfig.maxPhotosPerItem})' : ''}'),
+        title: Text('记录物品${_originalFiles.isNotEmpty ? ' (${_originalFiles.length}/${AppConfig.maxPhotosPerItem})' : ''}'),
         actions: [
-          if (_imageFiles.isNotEmpty)
+          if (_originalFiles.isNotEmpty)
             TextButton(
               onPressed: _isSaving ? null : _saveItem,
               child: _isSaving
@@ -225,21 +289,51 @@ class _CameraPageState extends ConsumerState<CameraPage> {
             ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Stack(
         children: [
-          // 图片区域
-          if (_imageFiles.isNotEmpty) ...[
+          ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // 压缩状态遮罩层
+              if (_compressStatus != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(_compressStatus!),
+                    ],
+                  ),
+                ),
+              // 图片区域
+              if (_originalFiles.isNotEmpty) ...[
             // 已选照片水平滚动列表
             SizedBox(
               height: 200,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: _imageFiles.length,
+                itemCount: _originalFiles.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   return _PhotoThumbnail(
-                    imageFile: _imageFiles[index],
+                    imageFile: _thumbnailFiles[index], // 显示缩略图
                     index: index,
                     onDelete: () => _removePhoto(index),
                   );
@@ -248,7 +342,7 @@ class _CameraPageState extends ConsumerState<CameraPage> {
             ),
             const SizedBox(height: 8),
             // 添加更多照片按钮
-            if (_imageFiles.length < AppConfig.maxPhotosPerItem)
+            if (_originalFiles.length < AppConfig.maxPhotosPerItem)
               Row(
                 children: [
                   FilledButton.icon(
@@ -361,7 +455,9 @@ class _CameraPageState extends ConsumerState<CameraPage> {
           ),
         ],
       ),
-    );
+    ],
+  ),
+);
   }
 }
 

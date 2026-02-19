@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uploading/core/config/app_config.dart';
+import 'package:uploading/core/utils/path_utils.dart';
 import '../data/datasources/local/app_database.dart';
 import '../data/datasources/local/dao/sync_metadata_dao.dart';
 import '../data/datasources/local/dao/photo_dao.dart';
 import 'oss_service.dart';
+import 'logging_service.dart';
 
 /// 同步阶段
 enum SyncStage {
@@ -139,7 +141,9 @@ class SyncService {
     // 2. 生成带时间戳的文件名
     final timestamp = DateFormat('yyyyMMddHHmmss').format(DateTime.now());
     final fileName = 'uploading.db.$timestamp';
-    final remotePath = 'accounts/$accountId/database/$fileName';
+    // 使用 shortAccountId 与照片路径保持一致
+    final shortAccountId = accountId.substring(0, 8);
+    final remotePath = 'accounts/$shortAccountId/database/$fileName';
 
     // 3. 上传数据库文件到 OSS
     await ossService.uploadFile(file: File(originalDbPath), key: remotePath);
@@ -213,9 +217,16 @@ class SyncService {
         final photoId = photo['id'] as String;
         final localPath = photo['local_path'] as String?;
         final fileExtension = photo['file_extension'] as String?;
+        final s3Key = photo['s3_key'] as String;
+        final s3KeyThumbnail = photo['s3_key_thumbnail'] as String?;
 
         if (localPath != null) {
           final file = File(localPath);
+
+          // 获取缩略图路径（使用 PathUtils 统一处理）
+          final thumbnailLocalPath = PathUtils.getThumbnailLocalPath(localPath);
+          final thumbnailFile = File(thumbnailLocalPath);
+
           if (await file.exists()) {
             try {
               // 根据 file_extension 设置 Content-Type
@@ -224,13 +235,44 @@ class SyncService {
                 contentType = _getContentTypeForExtension(fileExtension);
               }
 
+              // 1. 先上传缩略图（更快，列表页优先显示）
+              String? actualThumbnailKey = s3KeyThumbnail;
+              if (s3KeyThumbnail != null && await thumbnailFile.exists()) {
+                try {
+                  await ossService.uploadFile(
+                    file: thumbnailFile,
+                    key: s3KeyThumbnail,
+                    contentType: contentType,
+                  );
+                } catch (e) {
+                  // 缩略图上传失败，使用原图 S3 Key 作为降级方案
+                  LoggingService().warning(
+                    '缩略图上传失败，使用原图 S3 Key',
+                    context: {
+                      'photoId': photoId,
+                      's3KeyThumbnail': s3KeyThumbnail,
+                      'error': e.toString(),
+                    },
+                  );
+                  actualThumbnailKey = s3Key;
+                }
+              }
+
+              // 2. 再上传原图
               await ossService.uploadFile(
                 file: file,
-                key: photo['s3_key'] as String,
+                key: s3Key,
                 contentType: contentType,
               );
-              // 成功：状态 uploading -> completed
-              await _photoDao.update(photoId, {'upload_status': 'completed'});
+
+              // 3. 更新数据库中的缩略图 Key（可能是原图 Key 作为降级）
+              final updateData = <String, dynamic>{
+                'upload_status': 'completed',
+              };
+              if (actualThumbnailKey != null && actualThumbnailKey != s3KeyThumbnail) {
+                updateData['s3_key_thumbnail'] = actualThumbnailKey;
+              }
+              await _photoDao.update(photoId, updateData);
               uploadedCount++;
             } catch (e) {
               // 失败：重置为 pending 允许重试

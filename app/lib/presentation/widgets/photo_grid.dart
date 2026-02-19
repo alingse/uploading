@@ -207,7 +207,11 @@ class PhotoGrid extends ConsumerWidget {
           return _buildPlaceholder();
         }
         final ossService = OssService.fromAccount(account);
-        final imageUrl = ossService.getPublicUrl(photo.s3Key);
+
+        // 列表页优先使用缩略图，回退到原图
+        final displayKey = photo.s3KeyThumbnail ?? photo.s3Key;
+        final imageUrl = ossService.getPublicUrl(displayKey);
+
         return Image.network(
           imageUrl,
           fit: BoxFit.cover,
@@ -220,13 +224,34 @@ class PhotoGrid extends ConsumerWidget {
               'OSS 图片加载失败',
               context: {
                 'photoId': photo.id,
-                's3Key': photo.s3Key,
+                's3Key': displayKey,
                 'imageUrl': imageUrl,
                 'account': account.bucket,
               },
               error: error,
               stackTrace: stackTrace,
             );
+            // 缩略图加载失败，尝试原图
+            if (displayKey != photo.s3Key) {
+              LoggingService().info('缩略图加载失败，尝试原图', context: {'originalKey': photo.s3Key});
+              final originalImageUrl = ossService.getPublicUrl(photo.s3Key);
+              return Image.network(
+                originalImageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) {
+                  // OSS 加载失败，尝试降级到本地文件
+                  if (photo.localPath != null) {
+                    LoggingService().info('降级到本地文件', context: {'localPath': photo.localPath});
+                    return Image.file(
+                      File(photo.localPath!),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, ___, ____) => _buildPlaceholder(),
+                    );
+                  }
+                  return _buildPlaceholder();
+                },
+              );
+            }
             // OSS 加载失败，尝试降级到本地文件
             if (photo.localPath != null) {
               LoggingService().info('降级到本地文件', context: {'localPath': photo.localPath});
@@ -430,7 +455,7 @@ class PhotoPreviewDialog extends ConsumerWidget {
     );
   }
 
-  /// 从 OSS 加载全屏图片
+  /// 从 OSS 加载全屏图片（使用原图）
   Widget _buildFullScreenOssImage(BuildContext context, WidgetRef ref, Photo photo) {
     final activeAccountAsync = ref.watch(activeAccountProvider);
 
@@ -446,6 +471,7 @@ class PhotoPreviewDialog extends ConsumerWidget {
         }
 
         final ossService = OssService.fromAccount(account);
+        // 全屏预览使用原图，保证清晰度
         final imageUrl = ossService.getPublicUrl(photo.s3Key);
 
         return Image.network(

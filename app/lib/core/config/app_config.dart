@@ -1,3 +1,5 @@
+import 'package:uploading/core/utils/path_utils.dart';
+
 /// 应用配置
 ///
 /// 包含默认 S3 配置（阿里云 OSS）和应用级别的常量
@@ -70,6 +72,40 @@ class AppConfig {
     return '$s3AccountsPrefix/$shortAccountId/$s3AppPath/$s3PhotosPath/$year/$month/$day/$shortPhotoId.$extension';
   }
 
+  /// 构建缩略图 S3 Key
+  ///
+  /// 从原图 S3 Key 推导出缩略图 Key
+  /// 原图: accounts/{accountId}/uploading/photos/{yyyy}/{MM}/{dd}/{photoId}.jpg
+  /// 缩略图: accounts/{accountId}/uploading/photos/{yyyy}/{MM}/{dd}/{photoId}-thumb.jpg
+  static String buildThumbnailKey(String originalS3Key) {
+    return PathUtils.buildThumbnailKey(originalS3Key);
+  }
+
   /// 每个物品最大照片数量
   static const int maxPhotosPerItem = 10;
+
+  // ========== 图片压缩配置 ==========
+
+  /// 图片最大宽度（像素）
+  ///
+  /// 1920px 对应 FHD (1920x1080) 分辨率，适合大多数移动设备屏幕显示
+  /// 超过此尺寸的图片会被等比缩放，保持宽高比
+  static const int maxImageWidth = 1920;
+
+  /// 图片最大高度（像素）
+  ///
+  /// 1920px 对应 FHD 分辨率，确保竖屏照片也能合理压缩
+  static const int maxImageHeight = 1920;
+
+  /// 图片压缩质量（0-100）
+  ///
+  /// 90% 质量在视觉上与原图几乎无差异，但能显著减小文件体积
+  /// 适用于 JPEG/WebP 格式
+  static const int imageQuality = 90;
+
+  /// 不压缩的最大图片大小（500KB）
+  ///
+  /// 小于此阈值的图片直接使用，避免压缩导致的质量损失
+  /// 500KB 对于缩略图来说是合理的上限
+  static const int maxUncompressedImageSize = 500 * 1024;
 }

@@ -48,7 +48,7 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -96,6 +96,7 @@ class AppDatabase {
         id TEXT PRIMARY KEY,
         item_id TEXT NOT NULL,
         s3_key TEXT NOT NULL,
+        s3_key_thumbnail TEXT,
         local_path TEXT,
         upload_status TEXT NOT NULL,
         created_at INTEGER NOT NULL,
@@ -175,6 +176,9 @@ class AppDatabase {
     }
     if (oldVersion < 7) {
       await migrateToVersion7(db);
+    }
+    if (oldVersion < 8) {
+      await migrateToVersion8(db);
     }
   }
 
@@ -418,6 +422,13 @@ class AppDatabase {
   /// 添加 memories 列用于存储记忆点数据（JSON 格式）
   Future<void> migrateToVersion7(Database db) async {
     await db.execute('ALTER TABLE items ADD COLUMN memories TEXT');
+  }
+
+  /// 迁移到版本8：添加缩略图列
+  ///
+  /// 添加 s3_key_thumbnail 列用于存储缩略图的 S3 Key
+  Future<void> migrateToVersion8(Database db) async {
+    await db.execute('ALTER TABLE photos ADD COLUMN s3_key_thumbnail TEXT');
   }
 
   /// 检查表是否存在

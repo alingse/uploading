@@ -26,8 +26,11 @@ mixin _$Photo {
   /// 关联的物品 ID
   String? get itemId => throw _privateConstructorUsedError;
 
-  /// S3 存储键
+  /// S3 存储键（原图）
   String get s3Key => throw _privateConstructorUsedError;
+
+  /// S3 存储键（缩略图）
+  String? get s3KeyThumbnail => throw _privateConstructorUsedError;
 
   /// 本地文件路径（可选）
   String? get localPath => throw _privateConstructorUsedError;
@@ -59,6 +62,7 @@ abstract class $PhotoCopyWith<$Res> {
       {String id,
       String? itemId,
       String s3Key,
+      String? s3KeyThumbnail,
       String? localPath,
       UploadStatus uploadStatus,
       DateTime? createdAt,
@@ -83,6 +87,7 @@ class _$PhotoCopyWithImpl<$Res, $Val extends Photo>
     Object? id = null,
     Object? itemId = freezed,
     Object? s3Key = null,
+    Object? s3KeyThumbnail = freezed,
     Object? localPath = freezed,
     Object? uploadStatus = null,
     Object? createdAt = freezed,
@@ -101,6 +106,10 @@ class _$PhotoCopyWithImpl<$Res, $Val extends Photo>
           ? _value.s3Key
           : s3Key // ignore: cast_nullable_to_non_nullable
               as String,
+      s3KeyThumbnail: freezed == s3KeyThumbnail
+          ? _value.s3KeyThumbnail
+          : s3KeyThumbnail // ignore: cast_nullable_to_non_nullable
+              as String?,
       localPath: freezed == localPath
           ? _value.localPath
           : localPath // ignore: cast_nullable_to_non_nullable
@@ -132,6 +141,7 @@ abstract class _$$PhotoImplCopyWith<$Res> implements $PhotoCopyWith<$Res> {
       {String id,
       String? itemId,
       String s3Key,
+      String? s3KeyThumbnail,
       String? localPath,
       UploadStatus uploadStatus,
       DateTime? createdAt,
@@ -154,6 +164,7 @@ class __$$PhotoImplCopyWithImpl<$Res>
     Object? id = null,
     Object? itemId = freezed,
     Object? s3Key = null,
+    Object? s3KeyThumbnail = freezed,
     Object? localPath = freezed,
     Object? uploadStatus = null,
     Object? createdAt = freezed,
@@ -172,6 +183,10 @@ class __$$PhotoImplCopyWithImpl<$Res>
           ? _value.s3Key
           : s3Key // ignore: cast_nullable_to_non_nullable
               as String,
+      s3KeyThumbnail: freezed == s3KeyThumbnail
+          ? _value.s3KeyThumbnail
+          : s3KeyThumbnail // ignore: cast_nullable_to_non_nullable
+              as String?,
       localPath: freezed == localPath
           ? _value.localPath
           : localPath // ignore: cast_nullable_to_non_nullable
@@ -199,6 +214,7 @@ class _$PhotoImpl implements _Photo {
       {required this.id,
       this.itemId,
       required this.s3Key,
+      this.s3KeyThumbnail,
       this.localPath,
       this.uploadStatus = UploadStatus.pending,
       this.createdAt,
@@ -215,9 +231,13 @@ class _$PhotoImpl implements _Photo {
   @override
   final String? itemId;
 
-  /// S3 存储键
+  /// S3 存储键（原图）
   @override
   final String s3Key;
+
+  /// S3 存储键（缩略图）
+  @override
+  final String? s3KeyThumbnail;
 
   /// 本地文件路径（可选）
   @override
@@ -238,7 +258,7 @@ class _$PhotoImpl implements _Photo {
 
   @override
   String toString() {
-    return 'Photo(id: $id, itemId: $itemId, s3Key: $s3Key, localPath: $localPath, uploadStatus: $uploadStatus, createdAt: $createdAt, fileExtension: $fileExtension)';
+    return 'Photo(id: $id, itemId: $itemId, s3Key: $s3Key, s3KeyThumbnail: $s3KeyThumbnail, localPath: $localPath, uploadStatus: $uploadStatus, createdAt: $createdAt, fileExtension: $fileExtension)';
   }
 
   @override
@@ -249,6 +269,8 @@ class _$PhotoImpl implements _Photo {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.itemId, itemId) || other.itemId == itemId) &&
             (identical(other.s3Key, s3Key) || other.s3Key == s3Key) &&
+            (identical(other.s3KeyThumbnail, s3KeyThumbnail) ||
+                other.s3KeyThumbnail == s3KeyThumbnail) &&
             (identical(other.localPath, localPath) ||
                 other.localPath == localPath) &&
             (identical(other.uploadStatus, uploadStatus) ||
@@ -261,8 +283,8 @@ class _$PhotoImpl implements _Photo {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, itemId, s3Key, localPath,
-      uploadStatus, createdAt, fileExtension);
+  int get hashCode => Object.hash(runtimeType, id, itemId, s3Key,
+      s3KeyThumbnail, localPath, uploadStatus, createdAt, fileExtension);
 
   /// Create a copy of Photo
   /// with the given fields replaced by the non-null parameter values.
@@ -285,6 +307,7 @@ abstract class _Photo implements Photo {
       {required final String id,
       final String? itemId,
       required final String s3Key,
+      final String? s3KeyThumbnail,
       final String? localPath,
       final UploadStatus uploadStatus,
       final DateTime? createdAt,
@@ -300,9 +323,13 @@ abstract class _Photo implements Photo {
   @override
   String? get itemId;
 
-  /// S3 存储键
+  /// S3 存储键（原图）
   @override
   String get s3Key;
+
+  /// S3 存储键（缩略图）
+  @override
+  String? get s3KeyThumbnail;
 
   /// 本地文件路径（可选）
   @override

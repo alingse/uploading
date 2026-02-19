@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +11,7 @@ import '../../../domain/entities/photo.dart';
 import '../../../domain/entities/presence.dart';
 import '../../../domain/entities/time_event.dart';
 import '../../../services/auto_sync_manager.dart';
+import '../../../services/image_compress_service.dart';
 import '../providers/item_provider.dart';
 import '../providers/s3_account_provider.dart';
 import '../widgets/memory_chip.dart';
@@ -421,11 +424,19 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
       if (photo != null && mounted) {
         final activeAccount = await ref.read(activeAccountProvider.future);
         final accountId = activeAccount?.id ?? 'default';
+
+        // 使用双轨压缩生成原图和缩略图
+        final result = await ImageCompressService.instance.compressDual(
+          File(photo.path),
+        );
+
         final newPhoto = PhotoDbConverter.createForUpload(
-          localPath: photo.path,
+          originalLocalPath: result.originalFile.path,
+          thumbnailLocalPath: result.thumbnailFile.path,
           itemId: widget.itemId,
           accountId: accountId,
           buildS3Key: AppConfig.buildPhotoKey,
+          buildThumbnailKey: AppConfig.buildThumbnailKey,
         );
         setState(() => _photos.add(newPhoto));
       }
