@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/config/app_config.dart';
 import '../../../data/datasources/local/dao/item_dao.dart';
 import '../../../data/datasources/local/dao/photo_dao.dart';
+import '../../../domain/entities/image_label_result.dart';
 import '../../../domain/entities/item.dart';
 import '../../../domain/entities/memory.dart';
 import '../../../domain/entities/photo.dart';
@@ -15,7 +16,9 @@ import '../../../domain/entities/presence.dart';
 import '../../../services/auto_sync_manager.dart';
 import '../../../services/image_compress_service.dart';
 import '../providers/s3_account_provider.dart';
+import '../widgets/image_labeling_base.dart';
 import '../widgets/memory_chip.dart';
+import '../widgets/suggested_tags.dart';
 import 'error_log_page.dart';
 
 /// 拍照页面
@@ -26,7 +29,7 @@ class CameraPage extends ConsumerStatefulWidget {
   ConsumerState<CameraPage> createState() => _CameraPageState();
 }
 
-class _CameraPageState extends ConsumerState<CameraPage> {
+class _CameraPageState extends ImageLabelingBase<CameraPage> {
   final _picker = ImagePicker();
   final _notesController = TextEditingController();
   final _tagsController = TextEditingController();
@@ -39,6 +42,48 @@ class _CameraPageState extends ConsumerState<CameraPage> {
   String? _compressStatus;
   Presence _selectedPresence = Presence.physical;
   List<Memory> _memories = [];
+  // ignore: prefer_final_fields
+  List<ImageLabelResult> _suggestedTags = []; // 会被 setState 修改
+  bool _isLabeling = false;
+
+  // ========== ImageLabelingMixin 实现 ==========
+
+  @override
+  List<ImageLabelResult> get suggestedTags => _suggestedTags;
+
+  @override
+  set suggestedTags(List<ImageLabelResult> value) {
+    setState(() => _suggestedTags = value);
+  }
+
+  @override
+  bool get isLabeling => _isLabeling;
+
+  @override
+  set isLabeling(bool value) {
+    setState(() => _isLabeling = value);
+  }
+
+  @override
+  List<String> get existingTags {
+    return _tagsController.text
+        .split(',')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+  }
+
+  @override
+  void addTag(String tag) {
+    final current = _tagsController.text.trim();
+    if (current.isEmpty) {
+      _tagsController.text = tag;
+    } else {
+      _tagsController.text = '$current, $tag';
+    }
+  }
+
+  // ============================================
 
   @override
   void dispose() {
@@ -145,6 +190,9 @@ class _CameraPageState extends ConsumerState<CameraPage> {
             ),
           );
         }
+
+        // 触发 AI 标签识别
+        labelImage(result.originalFile);
       }
     } catch (e) {
       // 处理失败，使用原图（降级处理）
@@ -403,6 +451,14 @@ class _CameraPageState extends ConsumerState<CameraPage> {
             ),
           ],
           const SizedBox(height: 24),
+
+          // AI 建议标签
+          SuggestedTags(
+            suggestions: _suggestedTags,
+            isLoading: _isLabeling,
+            onAccept: acceptSuggestion,
+            onDismissAll: dismissAllSuggestions,
+          ),
 
           // 备注输入
           TextField(

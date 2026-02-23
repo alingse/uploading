@@ -63,7 +63,8 @@ class AppDatabase {
         presence TEXT NOT NULL,
         notes TEXT,
         created_at INTEGER NOT NULL,
-        last_synced_at INTEGER
+        last_synced_at INTEGER,
+        memories TEXT
       )
     ''');
 

@@ -146,8 +146,14 @@ class PhotoDbConverter {
     String photoId,
     String extension,
   ) {
-    final shortAccountId = accountId.substring(0, 8);
-    final shortPhotoId = photoId.substring(0, 8);
+    // 确保 accountId 至少有 8 个字符（兼容 'default' 等 7 字符的情况）
+    final shortAccountId = accountId.length >= 8
+        ? accountId.substring(0, 8)
+        : accountId.padRight(8, '0');
+    // UUID 格式确保至少有 8 个字符
+    final shortPhotoId = photoId.length >= 8
+        ? photoId.substring(0, 8)
+        : photoId.padRight(8, '0');
     final now = DateTime.now();
     final year = now.year.toString();
     final month = now.month.toString().padLeft(2, '0');

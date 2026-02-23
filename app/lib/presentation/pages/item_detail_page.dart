@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../domain/entities/image_label_result.dart';
 import '../../../domain/entities/item.dart';
 import '../../../domain/entities/memory.dart';
 import '../../../domain/entities/photo.dart';
@@ -13,10 +14,12 @@ import '../../../domain/entities/time_event.dart';
 import '../../../services/auto_sync_manager.dart';
 import '../../../services/image_compress_service.dart';
 import '../providers/item_provider.dart';
+import '../widgets/image_labeling_base.dart';
 import '../providers/s3_account_provider.dart';
 import '../widgets/memory_chip.dart';
 import '../widgets/photo_grid.dart';
 import '../widgets/presence_chip.dart';
+import '../widgets/suggested_tags.dart';
 import '../widgets/tag_chip.dart';
 import '../widgets/time_event_list.dart';
 import 'error_log_page.dart';
@@ -41,7 +44,7 @@ class ItemDetailPage extends ConsumerStatefulWidget {
   ConsumerState<ItemDetailPage> createState() => _ItemDetailPageState();
 }
 
-class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
+class _ItemDetailPageState extends ImageLabelingBase<ItemDetailPage> {
   /// 是否处于编辑模式
   bool _isEditing = false;
 
@@ -55,6 +58,39 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
 
   /// 图片选择器
   final _picker = ImagePicker();
+
+  /// AI 标签建议
+  // ignore: prefer_final_fields
+  List<ImageLabelResult> _suggestedTags = []; // 会被 setState 修改
+  bool _isLabeling = false;
+
+  // ========== ImageLabelingMixin 实现 ==========
+
+  @override
+  List<ImageLabelResult> get suggestedTags => _suggestedTags;
+
+  @override
+  set suggestedTags(List<ImageLabelResult> value) {
+    setState(() => _suggestedTags = value);
+  }
+
+  @override
+  bool get isLabeling => _isLabeling;
+
+  @override
+  set isLabeling(bool value) {
+    setState(() => _isLabeling = value);
+  }
+
+  @override
+  List<String> get existingTags => _tags;
+
+  @override
+  void addTag(String tag) {
+    setState(() => _tags.add(tag));
+  }
+
+  // ============================================
 
   /// 原始物品（用于比对）
   Item? _originalItem;
@@ -237,16 +273,23 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        if (_isEditing)
+        if (_isEditing) ...[
+          SuggestedTags(
+            suggestions: _suggestedTags,
+            isLoading: _isLabeling,
+            onAccept: acceptSuggestion,
+            onDismissAll: dismissAllSuggestions,
+          ),
           TagInputField(
             tags: _tags,
             onChanged: (value) {
               setState(() => _tags = value);
             },
             hintText: '添加标签',
-          )
-        else
+          ),
+        ] else ...[
           TagList(tags: item.tags),
+        ],
         const SizedBox(height: 16),
 
         // 记忆点
@@ -316,6 +359,8 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         _timeEvents = List.from(_originalItem!.timeEvents);
         _photos = List.from(_originalItem!.photos);
         _memories = List.from(_originalItem!.memories);
+        _suggestedTags = [];
+        _isLabeling = false;
       }
     });
   }
@@ -439,6 +484,9 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           buildThumbnailKey: AppConfig.buildThumbnailKey,
         );
         setState(() => _photos.add(newPhoto));
+
+        // 触发 AI 标签识别
+        labelImage(result.originalFile);
       }
     } catch (e) {
       if (mounted) {

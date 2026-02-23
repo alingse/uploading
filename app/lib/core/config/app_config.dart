@@ -63,8 +63,14 @@ class AppConfig {
     String photoId,
     String extension,
   ) {
-    final shortAccountId = accountId.substring(0, 8);
-    final shortPhotoId = photoId.substring(0, 8);
+    // 确保 accountId 至少有 8 个字符（兼容 'default' 等 7 字符的情况）
+    final shortAccountId = accountId.length >= 8
+        ? accountId.substring(0, 8)
+        : accountId.padRight(8, '0');
+    // UUID 格式确保至少有 8 个字符
+    final shortPhotoId = photoId.length >= 8
+        ? photoId.substring(0, 8)
+        : photoId.padRight(8, '0');
     final now = DateTime.now();
     final year = now.year.toString();
     final month = now.month.toString().padLeft(2, '0');
@@ -108,4 +114,12 @@ class AppConfig {
   /// 小于此阈值的图片直接使用，避免压缩导致的质量损失
   /// 500KB 对于缩略图来说是合理的上限
   static const int maxUncompressedImageSize = 500 * 1024;
+
+  // ========== ML Kit 图片标签配置 ==========
+
+  /// ML Kit 置信度阈值（0.0-1.0）
+  static const double mlKitConfidenceThreshold = 0.5;
+
+  /// ML Kit 最大返回标签数
+  static const int mlKitMaxLabels = 10;
 }
